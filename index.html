@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>雨临 · Rainsoon — 雨还有多久到你这里</title>
-  <meta name="description" content="雨临 Rainsoon：基于日本气象厅高解像度降水临近预报，看未来一小时雨云的来路与去向，知道一场雨离你还有多远。" />
+  <meta name="description" id="metaDesc" content="雨临 Rainsoon：基于日本气象厅高解像度降水临近预报，看未来一小时雨云的来路与去向，知道一场雨离你还有多远。" />
   <meta name="theme-color" content="#0a0d12" />
   <link rel="canonical" href="https://rainsoon.lazydoglab.com/" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%A7%EF%B8%8F%3C/text%3E%3C/svg%3E" />
@@ -19,6 +19,7 @@
   <meta name="twitter:title" content="雨临 · Rainsoon" />
   <meta name="twitter:description" content="看一眼云的来路，知一场雨离你还有多远。" />
 
+  <script src="i18n.js"></script>
   <script src="firebase-config.js"></script>
   <script type="module" src="analytics.js"></script>
   <style>
@@ -53,10 +54,16 @@
     .small{font-size:12px;line-height:1.6;color:var(--muted)}
     .status{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#b9c4d1;max-height:180px;overflow:auto}
 .diag-card summary{list-style:none}.diag-card summary::-webkit-details-marker{display:none}.diag-card summary:after{content:"＋";float:right;color:var(--muted)}.diag-card[open] summary:after{content:"－"}
+    .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .brand{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;min-width:0}
     h1{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px}
     .brand-latin{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.14em}
-    .byline{margin-left:auto;font-size:12px;font-weight:500;color:var(--muted);text-decoration:none;letter-spacing:.04em;white-space:nowrap}
+    .byline{font-size:12px;font-weight:500;color:var(--muted);text-decoration:none;letter-spacing:.04em;white-space:nowrap}
     .byline:hover{color:var(--accent)}
+    .lang-switch{display:flex;gap:2px;padding:2px;margin-top:6px;border:1px solid var(--line);border-radius:999px;background:#0c1118;flex:0 0 auto}
+    .lang-switch button{width:auto;padding:5px 11px;font-size:12px;font-weight:600;border-radius:999px;background:transparent;color:var(--muted);letter-spacing:.02em;transition:color .12s ease,background .12s ease}
+    .lang-switch button:hover{color:var(--text)}
+    .lang-switch button[aria-pressed="true"]{background:#202936;color:var(--text)}
     .pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#202936;color:#c8d2de;font-size:12px;margin-right:6px}
     .t{cursor:pointer;transition:transform .12s ease,border-color .12s ease}
     .t:hover{transform:translateY(-1px);border-color:#53627a}
@@ -243,82 +250,85 @@
 </head>
 <body>
 <main>
-  <h1>雨临 <span class="brand-latin">RAINSOON</span><a class="byline" href="https://lazydoglab.com" target="_blank" rel="noopener">by lazydoglab</a></h1>
-  <div class="sub">看一眼云的来路，知一场雨离你还有多远。</div>
+  <header class="topbar">
+    <div class="brand">
+      <h1>雨临 <span class="brand-latin">RAINSOON</span></h1>
+      <a class="byline" href="https://lazydoglab.com" target="_blank" rel="noopener" data-i18n="byline">by lazydoglab</a>
+    </div>
+    <div class="lang-switch" id="langSwitch" role="group" aria-label="Language"></div>
+  </header>
+  <div class="sub" data-i18n="brand_sub">看一眼云的来路，知一场雨离你还有多远。</div>
 
   <div class="card">
-    <button id="locateBtn">听雨<span class="btn-note">寻你此刻所在</span></button>
-    <button id="refreshBtn" class="secondary" disabled>再看一眼云<span class="btn-note">留在原地，只换新云图</span></button>
+    <button id="locateBtn"><span data-i18n="btn_locate">听雨</span><span class="btn-note" data-i18n="btn_locate_note">寻你此刻所在</span></button>
+    <button id="refreshBtn" class="secondary" disabled><span data-i18n="btn_refresh">再看一眼云</span><span class="btn-note" data-i18n="btn_refresh_note">留在原地，只换新云图</span></button>
     <div style="height:14px"></div>
     <div class="row">
       <div>
-        <label>纬度 latitude</label>
+        <label data-i18n="label_lat">纬度 latitude</label>
         <input id="lat" inputmode="decimal" placeholder="35.6812">
       </div>
       <div>
-        <label>经度 longitude</label>
+        <label data-i18n="label_lon">经度 longitude</label>
         <input id="lon" inputmode="decimal" placeholder="139.7671">
       </div>
     </div>
-    <button id="manualBtn" class="secondary">从这里听雨<span class="btn-note">改用上面填的坐标</span></button>
+    <button id="manualBtn" class="secondary"><span data-i18n="btn_manual">从这里听雨</span><span class="btn-note" data-i18n="btn_manual_note">改用上面填的坐标</span></button>
   </div>
 
   <div class="card">
-    <span class="pill" id="locationPill">此刻所在：未知</span>
-    <span class="pill" id="baseTimePill">云图时刻：未读</span>
-    <div id="headline" class="hero">云还未说话</div>
-    <div id="detail" class="muted">让位置与云相遇，答案自然会来。</div>
+    <span class="pill" id="locationPill" data-i18n="pill_location_unknown">此刻所在：未知</span>
+    <span class="pill" id="baseTimePill" data-i18n="pill_basetime_unread">云图时刻：未读</span>
+    <div id="headline" class="hero" data-i18n="headline_idle">云还未说话</div>
+    <div id="detail" class="muted" data-i18n="detail_idle">让位置与云相遇，答案自然会来。</div>
     <div id="timeline" class="timeline"></div>
   </div>
 
   <div class="card">
-    <b>雨意将至</b>
+    <b data-i18n="card_summary_title">雨意将至</b>
     <div class="summary-grid">
-      <div class="summary-item"><div class="summary-k">雨起</div><div id="sumStart" class="summary-v">—</div></div>
-      <div class="summary-item"><div class="summary-k">雨歇</div><div id="sumEnd" class="summary-v">—</div></div>
-      <div class="summary-item"><div class="summary-k">雨最盛</div><div id="sumPeak" class="summary-v">—</div></div>
-      <div class="summary-item"><div class="summary-k">最盛之时</div><div id="sumPeakTime" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k" data-i18n="sum_k_start">雨起</div><div id="sumStart" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k" data-i18n="sum_k_end">雨歇</div><div id="sumEnd" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k" data-i18n="sum_k_peak">雨最盛</div><div id="sumPeak" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k" data-i18n="sum_k_peak_time">最盛之时</div><div id="sumPeakTime" class="summary-v">—</div></div>
     </div>
     <div class="risk-grid">
-      <div class="risk"><div class="icon">⚡</div><div class="name">远雷</div><div id="thunderRisk" class="value">静候</div></div>
-      <div class="risk"><div class="icon">🌪️</div><div class="name">疾风</div><div id="tornadoRisk" class="value">静候</div></div>
-      <div class="risk"><div class="icon">🌧️</div><div class="name">长雨带</div><div id="slmcsRisk" class="value">静候</div></div>
+      <div class="risk"><div class="icon">⚡</div><div class="name" data-i18n="risk_thunder">远雷</div><div id="thunderRisk" class="value" data-i18n="risk_waiting">静候</div></div>
+      <div class="risk"><div class="icon">🌪️</div><div class="name" data-i18n="risk_wind">疾风</div><div id="tornadoRisk" class="value" data-i18n="risk_waiting">静候</div></div>
+      <div class="risk"><div class="icon">🌧️</div><div class="name" data-i18n="risk_band">长雨带</div><div id="slmcsRisk" class="value" data-i18n="risk_waiting">静候</div></div>
     </div>
   </div>
 
   <div class="card">
-    <b>再往后的雨</b>
-    <div class="chart-note">眼前一小时看雨云，远处几小时看雨势。数据若暂不可得，这一栏会安静地留白。</div>
-    <div id="longForecast" class="long-strip"><div class="muted">远处的云，还在路上。</div></div>
+    <b data-i18n="card_long_title">再往后的雨</b>
+    <div class="chart-note" data-i18n="long_note">眼前一小时看雨云，远处几小时看雨势。数据若暂不可得，这一栏会安静地留白。</div>
+    <div id="longForecast" class="long-strip"><div class="muted" data-i18n="long_pending">远处的云，还在路上。</div></div>
   </div>
 
   <div class="card">
-    <b>雨势起伏</b>
-    <div id="chartNote" class="chart-note">每五分钟取一眼雨云，再把零散的雨意连成一条缓缓起伏的线。</div>
+    <b data-i18n="card_chart_title">雨势起伏</b>
+    <div id="chartNote" class="chart-note" data-i18n="chart_note_default">每五分钟取一眼雨云，再把零散的雨意连成一条缓缓起伏的线。</div>
     <div class="chart-wrap">
-      <svg id="rainChart" viewBox="0 0 680 240" preserveAspectRatio="none" aria-label="降水强度曲线"></svg>
+      <svg id="rainChart" viewBox="0 0 680 240" preserveAspectRatio="none" data-i18n-aria="chart_aria" aria-label="降水强度曲线"></svg>
     </div>
   </div>
 
   <details class="card diag-card">
-    <summary style="cursor:pointer;font-weight:700;user-select:none">看不见的细节</summary>
+    <summary style="cursor:pointer;font-weight:700;user-select:none" data-i18n="diag_title">看不见的细节</summary>
     <div id="log" class="status" style="margin-top:10px"></div>
   </details>
 
-  <div class="small">
-    云图取自日本气象厅（JMA）的高解像度降水临近预报。
-    雨势由公开雨云图层估算而来，适合看趋势与来去，不替代正式气象警报。
-  </div>
+  <div class="small" data-i18n="footer">云图取自日本气象厅（JMA）的高解像度降水临近预报。雨势由公开雨云图层估算而来，适合看趋势与来去，不替代正式气象警报。</div>
 </main>
 
 <div id="frameModal" class="modal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-head">
-      <div id="frameTitle" class="modal-title">这一刻的云</div>
-      <button id="closeModal" class="close-btn">关闭</button>
+      <div id="frameTitle" class="modal-title" data-i18n="modal_title_default">这一刻的云</div>
+      <button id="closeModal" class="close-btn" data-i18n="modal_close">关闭</button>
     </div>
     <div class="map-wrap">
-      <img id="frameImg" alt="雨临 · 降水云图">
+      <img id="frameImg" data-i18n-alt="modal_img_alt" alt="雨临 · 降水云图">
       <div class="crosshair"></div>
       <div class="dot"></div>
     </div>
@@ -347,6 +357,9 @@ const RAIN_PALETTE = [
 let currentLocation = null;
 let lastResults = [];
 let lastTile = null;
+let lastLongRows = null;   // 长时预报，切换语言后重绘要用
+let lastHazards = null;    // 雷 / 疾风 / 长雨带的事实，同上
+let lastFrame = null;      // 弹窗当前所示的那一帧
 
 const $ = id => document.getElementById(id);
 function log(msg){ $('log').textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; $('log').scrollTop = $('log').scrollHeight; }
@@ -507,27 +520,39 @@ async function sampleLayerTile(base, valid, element, tile){
     return {available:true,active,url,opaque};
   }catch(e){ return {available:false,active:false,error:e.message,url}; }
 }
+// 只保存事实（何时、有无），文案在 renderHazards 里生成，切换语言才好重说。
+function renderHazards(f){
+  if(!f){
+    $('thunderRisk').textContent=t('risk_waiting');
+    $('tornadoRisk').textContent=t('risk_waiting');
+    $('slmcsRisk').textContent=t('risk_waiting');
+    return;
+  }
+  $('thunderRisk').textContent = !f.probed ? t('hz_unknown')
+    : f.thunderAt ? t('hz_thunder_at',{time:hhmm(f.thunderAt)}) : t('hz_thunder_none');
+  $('tornadoRisk').textContent = !f.probed ? t('hz_unknown')
+    : f.tornadoAt ? t('hz_wind_at',{time:hhmm(f.tornadoAt)}) : t('hz_wind_none');
+  $('slmcsRisk').textContent = f.band===null ? t('hz_unknown')
+    : f.band ? t('hz_band_hit') : t('hz_band_none');
+}
+
 async function loadHazards(lat,lon,tile){
-  const out={thunder:'云意未明',tornado:'云意未明',slmcs:'云意未明'};
+  const facts={probed:false, thunderAt:null, tornadoAt:null, band:null};
   try{
     const n3=await fetchJson(`${JMA}/targetTimes_N3.json`);
     const latest=[...n3].sort((a,b)=>b.validtime.localeCompare(a.validtime));
     const thFrames=latest.filter(x=>x.elements?.includes('thns')).slice(0,8).sort((a,b)=>a.validtime.localeCompare(b.validtime));
     const trFrames=latest.filter(x=>x.elements?.includes('trns')).slice(0,8).sort((a,b)=>a.validtime.localeCompare(b.validtime));
 
-    let thunderAt=null;
+    facts.probed=true;
     for(const f of thFrames){
       const s=await sampleLayerTile(f.basetime,f.validtime,'thns',tile);
-      if(s.available && s.active){thunderAt=parseJmaTime(f.validtime);break;}
+      if(s.available && s.active){facts.thunderAt=parseJmaTime(f.validtime);break;}
     }
-    out.thunder=thunderAt?`雷声或在 ${thunderAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} 靠近`:'一小时内无雷意';
-
-    let tornadoAt=null;
     for(const f of trFrames){
       const s=await sampleLayerTile(f.basetime,f.validtime,'trns',tile);
-      if(s.available && s.active){tornadoAt=parseJmaTime(f.validtime);break;}
+      if(s.available && s.active){facts.tornadoAt=parseJmaTime(f.validtime);break;}
     }
-    out.tornado=tornadoAt?`疾风风险约在 ${tornadoAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:'一小时内风势平静';
 
     const sl=latest.find(x=>x.elements?.includes('slmcs') || x.elements?.includes('slmcs_fcst') || x.elements?.includes('slmcs_unifyfcst'));
     if(sl){
@@ -540,19 +565,18 @@ async function loadHazards(lat,lon,tile){
           if(g.features?.some(f=>pointInGeometry(lon,lat,f.geometry))){hit=true;break;}
         }catch(_){}
       }
-      out.slmcs=hit?'长雨带正覆过这里':'此刻不在长雨带中';
+      facts.band=hit;
     }
   }catch(e){
     log(`hazards: ${e.message}`);
   }
-  $('thunderRisk').textContent=out.thunder;
-  $('tornadoRisk').textContent=out.tornado;
-  $('slmcsRisk').textContent=out.slmcs;
-  return out;
+  lastHazards=facts;
+  renderHazards(facts);
+  return facts;
 }
 async function loadLongForecast(lat,lon,tile){
   const container=$('longForecast');
-  container.innerHTML='<div class="muted">远处的云，还在路上。</div>';
+  container.innerHTML=`<div class="muted">${escapeHtml(t('long_pending'))}</div>`;
   const now=new Date();
   const base=floorUtcHour(now);
   const rows=[];
@@ -574,10 +598,13 @@ async function loadLongForecast(lat,lon,tile){
     }
     rows.push(found);
   }
-  container.innerHTML=rows.map((r,i)=> r
-    ? `<div class="long-card"><div class="time">${r.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div><div class="rain">${r.mm>=RAIN_THRESHOLD?'🌧️ '+r.mm+' mm/h':'— 无雨'}</div></div>`
-    : `<div class="long-card"><div class="time">+${i+1}h</div><div class="rain">暂无数据</div></div>`).join('');
+  renderLongForecastRows(rows);
   return rows;
+}
+function renderLongForecastRows(rows){
+  $('longForecast').innerHTML=(rows||[]).map((r,i)=> r
+    ? `<div class="long-card"><div class="time">${hhmm(r.valid)}</div><div class="rain">${r.mm>=RAIN_THRESHOLD?'🌧️ '+r.mm+' mm/h':escapeHtml(t('long_no_rain'))}</div></div>`
+    : `<div class="long-card"><div class="time">+${i+1}h</div><div class="rain">${escapeHtml(t('long_no_data'))}</div></div>`).join('');
 }
 function updateSummary(results,longRows=[]){
   const valid=results.filter(x=>x.rain!==null);
@@ -592,19 +619,21 @@ function updateSummary(results,longRows=[]){
   }
   const all=[...valid,...(longRows||[]).filter(Boolean).map(r=>({valid:r.valid,intensityMm:r.mm}))];
   const peak=all.length?all.reduce((a,b)=>(a.intensityMm||0)>=(b.intensityMm||0)?a:b):null;
-  $('sumStart').textContent=start?`${start.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}（约${start.mins}分后）`:'一小时内无雨';
-  $('sumEnd').textContent=end?end.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):(start?'一小时后仍有雨':'—');
+  $('sumStart').textContent = !start ? t('sum_no_rain_hour')
+    : start.mins===0 ? t('sum_start_now',{time:hhmm(start.valid)})
+    : t('sum_start_val',{time:hhmm(start.valid),mins:start.mins});
+  $('sumEnd').textContent=end?hhmm(end.valid):(start?t('sum_rain_beyond'):'—');
   $('sumPeak').textContent=peak?`${(peak.intensityMm||0).toFixed(1)} mm/h`:'—';
-  $('sumPeakTime').textContent=peak?peak.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—';
+  $('sumPeakTime').textContent=peak?hhmm(peak.valid):'—';
 }
 
 async function checkRain(lat,lon){
   setBusy(true); $('log').textContent='';
-  $('headline').className='hero'; $('headline').textContent='正在听云…';
-  $('detail').textContent='云在远处，也在靠近。';
+  $('headline').className='hero'; $('headline').textContent=t('headline_listening');
+  $('detail').textContent=t('detail_listening');
   $('timeline').innerHTML='';
-  $('thunderRisk').textContent='静候'; $('tornadoRisk').textContent='静候'; $('slmcsRisk').textContent='静候';
-  $('longForecast').innerHTML='<div class="muted">远处的云，还在路上。</div>';
+  lastHazards=null; renderHazards(null);
+  $('longForecast').innerHTML=`<div class="muted">${escapeHtml(t('long_pending'))}</div>`;
   try{
     log(`位置 ${lat.toFixed(6)}, ${lon.toFixed(6)}`);
     const tile=tileFor(lat,lon,ZOOM);
@@ -613,7 +642,7 @@ async function checkRain(lat,lon){
     const frames=await getForecastFrames();
     if(!frames.length) throw new Error('没有找到 hrpns 预测帧');
     const base=parseJmaTime(frames[0].basetime);
-    $('baseTimePill').textContent=`云图时刻：${base.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    $('baseTimePill').textContent=t('pill_basetime',{time:hhmm(base)});
     log(`取得 ${frames.length} 个预测时次，basetime=${frames[0].basetime}`);
 
     const results=[];
@@ -637,6 +666,7 @@ async function checkRain(lat,lon){
     if(!results.length) throw new Error('JMA 返回了时次，但没有获得 0–60 分钟预测帧');
 
     lastResults = results;
+    lastLongRows = null;
     const firstRain = results.find(x=>x.rain===true && (x.intensityMm||0) >= RAIN_THRESHOLD);
     window.track('nowcast_result', {
       frames: results.length,
@@ -651,14 +681,15 @@ async function checkRain(lat,lon){
       loadHazards(lat,lon,tile),
       loadLongForecast(lat,lon,tile)
     ]);
+    lastLongRows = longRows;
     updateSummary(results,longRows);
     // 远处的云到了，雨歇之时才可能落到一小时之外，重说一遍。
     renderHeadline(results,longRows);
   }catch(e){
     console.error(e);
     $('headline').className='hero bad';
-    $('headline').textContent='读取失败';
-    $('detail').innerHTML=`${escapeHtml(e.message)}<br><br>如果诊断中出现 CORS / Failed to fetch，说明 JMA 当前端点不允许浏览器直接读取像素；正式版只需加一个很薄的 Cloud Run 代理即可，核心算法无需改变。`;
+    $('headline').textContent=t('headline_error');
+    $('detail').innerHTML=`${escapeHtml(e.message)}<br><br>${escapeHtml(t('detail_error_hint'))}`;
     log(`FATAL: ${e.stack || e.message}`);
     window.track('nowcast_error', { message: String(e.message).slice(0,100) });
   }finally{ setBusy(false); }
@@ -689,32 +720,32 @@ function renderHeadline(results, longRows){
     const end=findRainEnd(valid, longRows);
     $('headline').className='hero bad';
     if(end && end.precise){
-      $('headline').textContent=`雨正落着，约 ${end.mins} 分钟后歇`;
-      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h，${hhmm(end.at)} 前后，云会松手。`;
+      $('headline').textContent=t('headline_rain_stops_in',{mins:end.mins});
+      $('detail').textContent=t('detail_rain_stops_in',{mm:nowMm,time:hhmm(end.at)});
     }else if(end && end.at){
-      $('headline').textContent='雨落着，一时未歇';
-      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h。一小时内不见停歇，远处云图约在 ${hhmm(end.at)} 前后转晴——远处看得粗，只作参照。`;
+      $('headline').textContent=t('headline_rain_lingers');
+      $('detail').textContent=t('detail_rain_ends_rough',{mm:nowMm,time:hhmm(end.at)});
     }else if(end){
-      $('headline').textContent='雨落着，一时未歇';
-      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h。往后六小时的云图里，还望不见雨歇。`;
+      $('headline').textContent=t('headline_rain_lingers');
+      $('detail').textContent=t('detail_rain_no_end',{mm:nowMm});
     }else{
-      $('headline').textContent='雨已在身边';
-      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h，雨歇之时，还在望云。`;
+      $('headline').textContent=t('headline_raining_now');
+      $('detail').textContent=t('detail_raining_unknown_end',{mm:nowMm});
     }
   }else if(first){
     $('headline').className='hero warn';
-    $('headline').textContent=`雨，约 ${first.mins} 分钟后到`;
-    $('detail').textContent=`大约在 ${hhmm(first.valid)}，第一阵雨意会落到这里。`;
+    $('headline').textContent=t('headline_rain_in',{mins:first.mins});
+    $('detail').textContent=t('detail_rain_in',{time:hhmm(first.valid)});
   }else if(valid.length){
     $('headline').className='hero ok';
-    $('headline').textContent='一小时内，雨还不会来';
-    $('detail').textContent='此刻云路平静，可以慢一点。';
+    $('headline').textContent=t('headline_dry');
+    $('detail').textContent=t('detail_dry');
   }else{
     $('headline').className='hero bad';
-    $('headline').textContent='云意未明';
-    $('detail').textContent='这一刻没能听清云的回答。';
+    $('headline').textContent=t('headline_unknown');
+    $('detail').textContent=t('detail_unknown');
   }
-  if(anyErrors) $('detail').textContent += ' 有几段云图暂时失语。';
+  if(anyErrors) $('detail').textContent += t('detail_frames_missing');
 }
 
 function render(results, longRows){
@@ -722,9 +753,9 @@ function render(results, longRows){
 
   $('timeline').innerHTML=results
     .filter(x=>x.mins>=0 && x.mins<=60)
-    .map((x,i)=>`<div class="t ${x.rain?'rain':''} ${x.mins===0?'is-now':''}" data-frame-index="${results.indexOf(x)}" title="${x.mins===0?'此刻的实况云图':'点击查看预测图'}">
-      <div class="m">${x.mins===0?'此刻':'+'+x.mins+' min'} · ${hhmm(x.valid)}</div>
-      <div class="v">${x.rain===true?`🌧 ${x.intensityMm} mm/h`:x.rain===false?'— 无雨':'⚠️ 失败'}</div>
+    .map((x,i)=>`<div class="t ${x.rain?'rain':''} ${x.mins===0?'is-now':''}" data-frame-index="${results.indexOf(x)}" title="${escapeHtml(x.mins===0?t('tl_title_now'):t('tl_title_forecast'))}">
+      <div class="m">${escapeHtml(x.mins===0?t('tl_now'):t('tl_ahead',{mins:x.mins}))} · ${hhmm(x.valid)}</div>
+      <div class="v">${x.rain===true?`🌧 ${x.intensityMm} mm/h`:escapeHtml(x.rain===false?t('tl_no_rain'):t('tl_failed'))}</div>
     </div>`).join('');
 
   document.querySelectorAll('[data-frame-index]').forEach(el=>{
@@ -746,7 +777,7 @@ function renderRainChart(results){
   const innerW=W-M.l-M.r, innerH=H-M.t-M.b;
 
   if(!data.length){
-    svg.innerHTML = `<text x="24" y="40" fill="#8e9aaa" font-size="14">暂无可绘制数据</text>`;
+    svg.innerHTML = `<text x="24" y="40" fill="#8e9aaa" font-size="14">${escapeHtml(t('chart_empty'))}</text>`;
     return;
   }
 
@@ -801,7 +832,7 @@ function renderRainChart(results){
 
   // threshold line
   parts.push(`<line x1="${M.l}" y1="${y(RAIN_THRESHOLD)}" x2="${W-M.r}" y2="${y(RAIN_THRESHOLD)}" stroke="#ffd166" stroke-dasharray="4 4" stroke-width="1.5"/>`);
-  parts.push(`<text x="${W-M.r}" y="${y(RAIN_THRESHOLD)-6}" text-anchor="end" fill="#ffd166" font-size="12">雨意阈值 ${RAIN_THRESHOLD} mm/h</text>`);
+  parts.push(`<text x="${W-M.r}" y="${y(RAIN_THRESHOLD)-6}" text-anchor="end" fill="#ffd166" font-size="12">${escapeHtml(t('chart_threshold',{mm:RAIN_THRESHOLD}))}</text>`);
 
   // area and line
   parts.push(`<path d="${areaPath}" fill="rgba(112,165,255,0.18)"/>`);
@@ -814,28 +845,31 @@ function renderRainChart(results){
   }
 
   // axis labels
-  parts.push(`<text x="${M.l}" y="230" fill="#8e9aaa" font-size="12">往后一小时</text>`);
+  parts.push(`<text x="${M.l}" y="230" fill="#8e9aaa" font-size="12">${escapeHtml(t('chart_axis'))}</text>`);
   parts.push(`<text x="18" y="${M.t+8}" fill="#8e9aaa" font-size="12">mm/h</text>`);
 
   svg.innerHTML = parts.join('');
   const peak = data.reduce((a,b)=> a.mm>=b.mm?a:b);
-  $('chartNote').textContent = `把每五分钟的雨意轻轻连起来。最盛约 ${peak.mm.toFixed(1)} mm/h，落在 ${peak.time}。`;
+  $('chartNote').textContent = t('chart_note_peak',{mm:peak.mm.toFixed(1),time:peak.time});
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 
 function openFrame(frame){
   if(!frame) return;
-  $('frameTitle').textContent = `${frame.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} 的云`;
+  lastFrame = frame;
+  $('frameTitle').textContent = t('modal_title',{time:hhmm(frame.valid)});
   $('frameImg').src = frame.url;
-  const time = frame.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  const state = frame.rain===true ? `估算降水强度约 ${frame.intensityMm} mm/h` : frame.rain===false ? '未检测到可判定降水' : '该帧读取失败';
+  const state = frame.rain===true ? t('modal_state_rain',{mm:frame.intensityMm})
+              : frame.rain===false ? t('modal_state_dry')
+              : t('modal_state_fail');
+  const kv = (k,v)=>`${escapeHtml(t(k))}: ${v}`;
   $('frameMeta').innerHTML =
-    `时刻：${time}<br>` +
-    `雨意：${state}<br>` +
-    (currentLocation ? `位置：${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}<br>` : '') +
-    `云图：JMA hrpns / z=${ZOOM}` +
-    (lastTile ? `<br>Tile：${lastTile.x}/${lastTile.y}，当前位置像素约 ${lastTile.px},${lastTile.py}` : '');
+    kv('modal_k_time', hhmm(frame.valid)) + '<br>' +
+    kv('modal_k_rain', escapeHtml(state)) + '<br>' +
+    (currentLocation ? kv('modal_k_loc', `${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}`) + '<br>' : '') +
+    kv('modal_k_layer', `JMA hrpns / z=${ZOOM}`) +
+    (lastTile ? '<br>' + kv('modal_k_tile', escapeHtml(t('modal_tile_val',{x:lastTile.x,y:lastTile.y,px:lastTile.px,py:lastTile.py}))) : '');
   $('frameModal').classList.add('open');
   $('frameModal').setAttribute('aria-hidden','false');
   window.track('frame_view', { minutes_ahead: frame.mins, raining: frame.rain === true });
@@ -852,16 +886,16 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeFrame(); });
 $('locateBtn').onclick=()=>{
   window.track('locate_click', { method: 'gps' });
   if(!navigator.geolocation){
-    $('headline').textContent='浏览器不支持定位'; return;
+    $('headline').textContent=t('headline_no_geo'); return;
   }
   setBusy(true);
-  $('headline').textContent='获取定位中…';
+  $('headline').textContent=t('headline_locating');
   navigator.geolocation.getCurrentPosition(
     p=>{
       currentLocation={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};
       $('lat').value=currentLocation.lat.toFixed(6);
       $('lon').value=currentLocation.lon.toFixed(6);
-      $('locationPill').textContent=`此刻所在：±${Math.round(currentLocation.accuracy)}m`;
+      $('locationPill').textContent=t('pill_location_gps',{m:Math.round(currentLocation.accuracy)});
       $('refreshBtn').disabled=false;
       window.track('locate_success', { accuracy_m: Math.round(currentLocation.accuracy || 0) });
       checkRain(currentLocation.lat,currentLocation.lon);
@@ -869,8 +903,8 @@ $('locateBtn').onclick=()=>{
     e=>{
       setBusy(false);
       $('headline').className='hero bad';
-      $('headline').textContent='定位失败';
-      $('detail').textContent=`${e.message}。可以手动输入经纬度测试。`;
+      $('headline').textContent=t('headline_locate_failed');
+      $('detail').textContent=t('detail_locate_failed',{msg:e.message});
       window.track('locate_error', { code: e.code });
     },
     {enableHighAccuracy:true,timeout:12000,maximumAge:60000}
@@ -879,10 +913,10 @@ $('locateBtn').onclick=()=>{
 $('manualBtn').onclick=()=>{
   const lat=Number($('lat').value), lon=Number($('lon').value);
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){
-    alert('请输入有效经纬度'); return;
+    alert(t('alert_bad_coords')); return;
   }
   currentLocation={lat,lon,accuracy:null};
-  $('locationPill').textContent='此刻所在：手动坐标';
+  $('locationPill').textContent=t('pill_location_manual');
   $('refreshBtn').disabled=false;
   window.track('locate_click', { method: 'manual' });
   checkRain(lat,lon);
@@ -892,6 +926,57 @@ $('refreshBtn').onclick=()=>{
   window.track('refresh_click');
   checkRain(currentLocation.lat,currentLocation.lon);
 };
+
+/* ── i18n ───────────────────────────────────────────────────────────────
+   静态文案挂 data-i18n / -alt / -aria，由 applyStatic 统一刷；
+   动态文案在各自的 render 里调 t()，切语言时重跑一遍 render 即可。 */
+function applyStaticI18n(){
+  document.documentElement.lang = t('html_lang');
+  document.title = t('doc_title');
+  const meta = $('metaDesc');
+  if(meta) meta.setAttribute('content', t('doc_desc'));
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-alt]').forEach(el=>{ el.alt = t(el.dataset.i18nAlt); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el=>{ el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+}
+
+function buildLangSwitch(){
+  const box = $('langSwitch');
+  box.innerHTML = Object.keys(window.I18N).map(code=>
+    `<button type="button" data-lang="${code}" title="${escapeHtml(window.I18N[code].lang_name)}">${escapeHtml(window.I18N[code].lang_short)}</button>`
+  ).join('');
+  box.querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>setLang(b.dataset.lang);
+  });
+}
+
+function markActiveLang(){
+  $('langSwitch').querySelectorAll('button').forEach(b=>{
+    b.setAttribute('aria-pressed', String(b.dataset.lang === window.LANG));
+  });
+}
+
+function setLang(code){
+  if(!window.I18N[code] || code === window.LANG) return;
+  window.LANG = code;
+  try{ localStorage.setItem('rainsoon_lang', code); }catch(_){}
+  markActiveLang();
+  applyStaticI18n();
+
+  // 已经读过云的话，把动态部分按新语言重说一遍。
+  if(lastResults.length){
+    render(lastResults, lastLongRows);
+    updateSummary(lastResults, lastLongRows || []);
+    if(lastLongRows) renderLongForecastRows(lastLongRows);
+    if(lastHazards) renderHazards(lastHazards);
+    if($('frameModal').classList.contains('open') && lastFrame) openFrame(lastFrame);
+  }
+  window.track('lang_switch', { lang: code });
+}
+
+buildLangSwitch();
+markActiveLang();
+applyStaticI18n();
 </script>
 </body>
 </html>
