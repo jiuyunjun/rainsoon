@@ -61,6 +61,23 @@ Firebase Analytics 只在 `firebase-config.js` 里的 `measurementId` 填好（�
 
 加新语言：在 `window.I18N` 里加一份同名键的字典即可，右上角切换器按字典的键自动生成。
 
+## 数据来源与瓦片层级
+
+雨云、雷、龙卷都没有「给经纬度返回数值」的接口，只发布为 Web Mercator 瓦片（EPSG:3857，
+与 OSM 同一套网格）。`tileFor()` 把经纬度换算成瓦片编号与瓦片内像素，再读像素颜色反推雨量，
+颜色对照表 `RAIN_PALETTE` 取自官方图例 `/bosai/nowc/images/legend_en_normal_hrpns.svg`。
+
+各图层的瓦片层级不同，取自官方配置 `/bosai/nowc/table/nowc.properties__*.xml`：
+
+| 图层 | 官方 maxNativeZoom | 本项目实际使用 | 说明 |
+| --- | --- | --- | --- |
+| `hrpns` 降水 | 10 | `ZOOM = 10` | z=10 之上（z≤14）由客户端拉伸，无新信息 |
+| `thns` 雷 | 9 | `HAZARD_ZOOM = 8` | 实测 z=9 一律空图，z=8 才有数据 |
+| `trns` 龙卷 | 9 | `HAZARD_ZOOM = 8` | 同上 |
+| `slmcs` 线状降水带 | — | — | GeoJSON 多边形，非瓦片 |
+
+z=10 时一个像素约 125 m（北纬 35 度），一张瓦片约 32 km 见方；源数据本身是 250 m 网格。
+
 ## 数据来源
 
 日本气象厅公开雨云图层。雨势为像素估算，适合看趋势与来去，不替代正式气象警报。

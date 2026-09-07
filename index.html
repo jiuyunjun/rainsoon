@@ -381,20 +381,30 @@
 <script>
 const JMA = 'https://www.jma.go.jp/bosai/jmatile/data/nowc';
 const JMA_RASRF = 'https://www.jma.go.jp/bosai/jmatile/data/rasrf';
-const ZOOM = 10;           // JMA hrpns native max zoom used by public viewer ecosystem
+const ZOOM = 10;           // hrpns 的 maxNativeZoom，官方 nowc.properties xml 载明
+// 雷(thns)/龙卷(trns)图层的瓦片只发布到更低的层级：官方配置写 maxNativeZoom=9，
+// 但实测 z=9 一律返回空图（334 字节全透明），z=8 才有数据。用 10 去取，
+// 拿到的永远是空图，于是「远雷」「疾风」始终报无——这里单独用 8。
+const HAZARD_ZOOM = 8;
 const SAMPLE_RADIUS = 2;   // 5x5 pixels around GPS point, reduce edge flicker
 const RAIN_THRESHOLD = 0.5; // mm/h, used for first-rain detection
 // Approximate JMA precipitation intensity buckets inferred from tile colors.
 // Used only for MVP curve rendering.
+// 取自气象厅官方图例 /bosai/nowc/images/legend_en_normal_hrpns.svg，
+// 并与实际瓦片像素逐一核对过。此前这张表整体错位一级——每个颜色都被
+// 挂到了低一档的雨量上，且缺了最弱的 0.1-1mm 一档（242,242,255），
+// 导致它与 1-5mm 一同被吸附成 0.5mm，雨势系统性偏低。
+// 注：瓦片里的黄色实测为 (250,245,0)，图例写 (255,245,0)，
+// 差 5 个色阶，最近邻匹配足以吸收，无需单列。
 const RAIN_PALETTE = [
-  {mm: 0.5, rgb:[180,230,255], label:'<1'},
-  {mm: 3,   rgb:[33,140,255],  label:'1-5'},
-  {mm: 7.5, rgb:[0,65,255],    label:'5-10'},
-  {mm: 15,  rgb:[255,245,0],   label:'10-20'},
-  {mm: 25,  rgb:[255,170,0],   label:'20-30'},
-  {mm: 40,  rgb:[255,60,0],    label:'30-50'},
-  {mm: 65,  rgb:[180,0,104],   label:'50-80'},
-  {mm: 90,  rgb:[255,0,255],   label:'>=80'}
+  {mm: 0.5, rgb:[242,242,255], label:'0.1-1'},
+  {mm: 3,   rgb:[160,210,255], label:'1-5'},
+  {mm: 7.5, rgb:[33,140,255],  label:'5-10'},
+  {mm: 15,  rgb:[0,65,255],    label:'10-20'},
+  {mm: 25,  rgb:[255,245,0],   label:'20-30'},
+  {mm: 40,  rgb:[255,153,0],   label:'30-50'},
+  {mm: 65,  rgb:[255,40,0],    label:'50-80'},
+  {mm: 90,  rgb:[180,0,104],   label:'>=80'}
 ];
 let currentLocation = null;
 let lastResults = [];
@@ -559,7 +569,7 @@ function pointInGeometry(lon,lat,g){
   return false;
 }
 async function sampleLayerTile(base, valid, element, tile){
-  const url=`${JMA}/${base}/none/${valid}/surf/${element}/${ZOOM}/${tile.x}/${tile.y}.png`;
+  const url=`${JMA}/${base}/none/${valid}/surf/${element}/${tile.z}/${tile.x}/${tile.y}.png`;
   try{
     const bmp=await loadBitmap(url);
     if(!bmp) return {available:false, active:false, url};
@@ -593,6 +603,8 @@ function renderHazards(f){
 
 async function loadHazards(lat,lon,tile){
   const facts={probed:false, thunderAt:null, tornadoAt:null, band:null};
+  // 雷/龙卷图层不发布到 z=10，得按 HAZARD_ZOOM 重新算一次瓦片与像素。
+  const hzTile = tileFor(lat, lon, HAZARD_ZOOM);
   try{
     const n3=await fetchJson(`${JMA}/targetTimes_N3.json`);
     const latest=[...n3].sort((a,b)=>b.validtime.localeCompare(a.validtime));
@@ -601,11 +613,11 @@ async function loadHazards(lat,lon,tile){
 
     facts.probed=true;
     for(const f of thFrames){
-      const s=await sampleLayerTile(f.basetime,f.validtime,'thns',tile);
+      const s=await sampleLayerTile(f.basetime,f.validtime,'thns',hzTile);
       if(s.available && s.active){facts.thunderAt=parseJmaTime(f.validtime);break;}
     }
     for(const f of trFrames){
-      const s=await sampleLayerTile(f.basetime,f.validtime,'trns',tile);
+      const s=await sampleLayerTile(f.basetime,f.validtime,'trns',hzTile);
       if(s.available && s.active){facts.tornadoAt=parseJmaTime(f.validtime);break;}
     }
 
