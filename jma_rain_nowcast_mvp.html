@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>雨临 · Rainsoon</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#0a0d12; --card:#121720; --line:#26303d; --muted:#8e9aaa;
+      --text:#f4f7fb; --ok:#49d17d; --warn:#ffd166; --bad:#ff6b6b; --accent:#70a5ff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0a0d12,#0e131a);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+    main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+    h1{font-size:24px;margin:4px 0 8px}
+    .sub{color:var(--muted);line-height:1.6;margin-bottom:18px}
+    .card{background:rgba(18,23,32,.94);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+    .hero{font-size:34px;font-weight:750;line-height:1.2;margin:8px 0}
+    .hero.ok{color:var(--ok)} .hero.warn{color:var(--warn)} .hero.bad{color:var(--bad)}
+    .muted{color:var(--muted)}
+    button{appearance:none;border:0;border-radius:14px;padding:13px 16px;font-size:16px;font-weight:700;cursor:pointer;background:var(--accent);color:#07101e;width:100%}
+    button.secondary{background:#202936;color:var(--text);margin-top:10px}
+    button:disabled{opacity:.55;cursor:wait}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row > *{flex:1 1 180px}
+    input{width:100%;background:#0b1017;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font-size:15px}
+    label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+    .timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+    .t{border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;background:#0c1118}
+    .t .m{font-size:13px;color:var(--muted)} .t .v{font-size:14px;font-weight:700;margin-top:5px}
+    .t.rain{border-color:#6d83ff;background:#111831}
+    .small{font-size:12px;line-height:1.6;color:var(--muted)}
+    .status{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#b9c4d1;max-height:180px;overflow:auto}
+.diag-card summary{list-style:none}.diag-card summary::-webkit-details-marker{display:none}.diag-card summary:after{content:"＋";float:right;color:var(--muted)}.diag-card[open] summary:after{content:"－"}
+    .pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#202936;color:#c8d2de;font-size:12px;margin-right:6px}
+    .t{cursor:pointer;transition:transform .12s ease,border-color .12s ease}
+    .t:hover{transform:translateY(-1px);border-color:#53627a}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:18px;z-index:999}
+    .modal.open{display:flex}
+    .modal-card{width:min(720px,100%);max-height:92vh;overflow:auto;background:#111722;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 20px 70px rgba(0,0,0,.5)}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .modal-title{font-size:18px;font-weight:750}
+    .close-btn{width:auto;padding:8px 12px;background:#202936;color:var(--text)}
+    .map-wrap{position:relative;width:100%;aspect-ratio:1/1;background:#090d13;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+    #frameImg{width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block}
+    .crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);pointer-events:none}
+    .crosshair:before,.crosshair:after{content:"";position:absolute;background:#fff;box-shadow:0 0 3px #000}
+    .crosshair:before{left:10px;top:0;width:2px;height:22px}
+    .crosshair:after{left:0;top:10px;width:22px;height:2px}
+    .dot{position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;background:#ff4d4f;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(255,255,255,.9)}
+    .frame-meta{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.6}
+.chart-wrap{margin-top:10px}
+.chart-note{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+
+    .summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+    .summary-item{background:#0c1118;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .summary-k{font-size:12px;color:var(--muted);margin-bottom:5px}
+    .summary-v{font-size:18px;font-weight:750;line-height:1.25}
+    .risk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+    .risk{background:#0c1118;border:1px solid var(--line);border-radius:13px;padding:11px 9px;text-align:center}
+    .risk .icon{font-size:22px}.risk .name{font-size:12px;color:var(--muted);margin-top:4px}.risk .value{font-size:14px;font-weight:750;margin-top:3px}
+    .long-strip{display:flex;overflow-x:auto;gap:8px;padding:2px 0 5px;scroll-snap-type:x mandatory;scrollbar-width:none}
+    .long-strip::-webkit-scrollbar{display:none}
+    .long-card{flex:0 0 108px;scroll-snap-align:start;background:#0c1118;border:1px solid var(--line);border-radius:13px;padding:10px 8px;text-align:center}
+    .long-card .time{font-size:12px;color:var(--muted)}.long-card .rain{font-size:14px;font-weight:750;margin-top:5px}
+#rainChart{width:100%;height:auto;display:block;background:#0c1118;border:1px solid var(--line);border-radius:14px}
+    
+@media(max-width:640px){
+  body{
+    background:#0b1016;
+    -webkit-text-size-adjust:100%;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  main{
+    width:100%;
+    max-width:none;
+    padding:14px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+  h1{font-size:21px;margin:2px 2px 5px}
+  .sub{
+    font-size:13px;
+    line-height:1.45;
+    margin:0 2px 12px;
+  }
+  .card{
+    border-radius:16px;
+    padding:14px;
+    margin:10px 0;
+    box-shadow:none;
+  }
+  .hero{
+    font-size:30px;
+    letter-spacing:-.02em;
+    margin:10px 0 7px;
+  }
+  .muted{font-size:14px;line-height:1.5}
+  button{
+    min-height:48px;
+    border-radius:13px;
+    font-size:16px;
+    padding:12px 14px;
+  }
+  button.secondary{margin-top:8px}
+  input{
+    min-height:46px;
+    font-size:16px; /* prevent iOS zoom on focus */
+    padding:11px 12px;
+  }
+  .row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .row > *{min-width:0}
+  label{font-size:12px}
+  .pill{
+    font-size:11px;
+    margin:0 5px 5px 0;
+    padding:5px 8px;
+  }
+
+  /* Horizontal swipe instead of tiny 3-column cards */
+  .timeline{
+    display:flex;
+    overflow-x:auto;
+    gap:8px;
+    margin:12px -14px 0;
+    padding:0 14px 5px;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .timeline::-webkit-scrollbar{display:none}
+  .t{
+    flex:0 0 112px;
+    min-height:72px;
+    padding:10px 8px;
+    border-radius:13px;
+    scroll-snap-align:start;
+  }
+  .t .m{font-size:11.5px;white-space:nowrap}
+  .t .v{font-size:13px;line-height:1.3}
+
+  /* Chart stays readable on narrow screens */
+  .chart-wrap{
+    overflow-x:auto;
+    margin:8px -6px 0;
+    padding-bottom:2px;
+  }
+  #rainChart{
+    min-width:620px;
+    height:220px;
+    border-radius:12px;
+  }
+  .chart-note{font-size:11.5px;line-height:1.5}
+
+  /* Diagnostic section should not dominate mobile */
+  .status{
+    max-height:110px;
+    font-size:10.5px;
+  }
+
+  /* Frame preview becomes bottom-sheet/full-screen-ish */
+  .modal{
+    align-items:flex-end;
+    padding:0;
+    background:rgba(0,0,0,.72);
+  }
+  .modal-card{
+    width:100%;
+    max-height:94dvh;
+    border-radius:20px 20px 0 0;
+    border-left:0;
+    border-right:0;
+    border-bottom:0;
+    padding:14px 12px calc(14px + env(safe-area-inset-bottom));
+  }
+  .modal-head{
+    position:sticky;
+    top:0;
+    z-index:2;
+    margin:-4px 0 10px;
+    padding:4px 0 6px;
+    background:#111722;
+  }
+  .modal-title{font-size:17px}
+  .close-btn{
+    min-height:40px;
+    width:auto;
+    padding:8px 12px;
+    font-size:14px;
+  }
+  .map-wrap{
+    width:100%;
+    max-height:68vh;
+    aspect-ratio:1/1;
+    border-radius:12px;
+  }
+  .frame-meta{font-size:12px}
+
+  /* Make primary weather result the visual focus */
+  main > .card:nth-of-type(2){
+    padding-top:13px;
+  }
+  .small{
+    font-size:11px;
+    line-height:1.5;
+  }
+  .summary-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .summary-item{padding:10px}
+  .summary-v{font-size:16px}
+  .risk-grid{grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .risk{padding:9px 6px}
+  .risk .value{font-size:12px}
+}
+
+  </style>
+</head>
+<body>
+<main>
+  <h1>雨临 <span style="font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.14em;margin-left:6px">RAINSOON</span></h1>
+  <div class="sub">看一眼云的来路，知一场雨离你还有多远。</div>
+
+  <div class="card">
+    <button id="locateBtn">听雨</button>
+    <button id="refreshBtn" class="secondary" disabled>再看一眼云</button>
+    <div style="height:14px"></div>
+    <div class="row">
+      <div>
+        <label>纬度 latitude</label>
+        <input id="lat" inputmode="decimal" placeholder="35.6812">
+      </div>
+      <div>
+        <label>经度 longitude</label>
+        <input id="lon" inputmode="decimal" placeholder="139.7671">
+      </div>
+    </div>
+    <button id="manualBtn" class="secondary">从这里听雨</button>
+    <p class="small">定位需要 HTTPS 或 localhost。若直接双击 HTML 后浏览器拒绝定位，请通过本地 Web Server 打开。</p>
+  </div>
+
+  <div class="card">
+    <span class="pill" id="locationPill">此刻所在：未知</span>
+    <span class="pill" id="baseTimePill">云图时刻：未读</span>
+    <div id="headline" class="hero">云还未说话</div>
+    <div id="detail" class="muted">让位置与云相遇，答案自然会来。</div>
+    <div id="timeline" class="timeline"></div>
+  </div>
+
+  <div class="card">
+    <b>雨意将至</b>
+    <div class="summary-grid">
+      <div class="summary-item"><div class="summary-k">雨起</div><div id="sumStart" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k">雨歇</div><div id="sumEnd" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k">雨最盛</div><div id="sumPeak" class="summary-v">—</div></div>
+      <div class="summary-item"><div class="summary-k">最盛之时</div><div id="sumPeakTime" class="summary-v">—</div></div>
+    </div>
+    <div class="risk-grid">
+      <div class="risk"><div class="icon">⚡</div><div class="name">远雷</div><div id="thunderRisk" class="value">静候</div></div>
+      <div class="risk"><div class="icon">🌪️</div><div class="name">疾风</div><div id="tornadoRisk" class="value">静候</div></div>
+      <div class="risk"><div class="icon">🌧️</div><div class="name">长雨带</div><div id="slmcsRisk" class="value">静候</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>再往后的雨</b>
+    <div class="chart-note">眼前一小时看雨云，远处几小时看雨势。数据若暂不可得，这一栏会安静地留白。</div>
+    <div id="longForecast" class="long-strip"><div class="muted">远处的云，还在路上。</div></div>
+  </div>
+
+  <div class="card">
+    <b>雨势起伏</b>
+    <div id="chartNote" class="chart-note">每五分钟取一眼雨云，再把零散的雨意连成一条缓缓起伏的线。</div>
+    <div class="chart-wrap">
+      <svg id="rainChart" viewBox="0 0 680 240" preserveAspectRatio="none" aria-label="降水强度曲线"></svg>
+    </div>
+  </div>
+
+  <details class="card diag-card">
+    <summary style="cursor:pointer;font-weight:700;user-select:none">看不见的细节</summary>
+    <div id="log" class="status" style="margin-top:10px"></div>
+  </details>
+
+  <div class="small">
+    云图取自日本气象厅（JMA）的高解像度降水临近预报。
+    雨势由公开雨云图层估算而来，适合看趋势与来去，不替代正式气象警报。
+  </div>
+</main>
+
+<div id="frameModal" class="modal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div id="frameTitle" class="modal-title">这一刻的云</div>
+      <button id="closeModal" class="close-btn">关闭</button>
+    </div>
+    <div class="map-wrap">
+      <img id="frameImg" alt="雨临 · 降水云图">
+      <div class="crosshair"></div>
+      <div class="dot"></div>
+    </div>
+    <div id="frameMeta" class="frame-meta"></div>
+  </div>
+</div>
+
+<script>
+const JMA = 'https://www.jma.go.jp/bosai/jmatile/data/nowc';
+const JMA_RASRF = 'https://www.jma.go.jp/bosai/jmatile/data/rasrf';
+const ZOOM = 10;           // JMA hrpns native max zoom used by public viewer ecosystem
+const SAMPLE_RADIUS = 2;   // 5x5 pixels around GPS point, reduce edge flicker
+const RAIN_THRESHOLD = 0.5; // mm/h, used for first-rain detection
+// Approximate JMA precipitation intensity buckets inferred from tile colors.
+// Used only for MVP curve rendering.
+const RAIN_PALETTE = [
+  {mm: 0.5, rgb:[180,230,255], label:'<1'},
+  {mm: 3,   rgb:[33,140,255],  label:'1-5'},
+  {mm: 7.5, rgb:[0,65,255],    label:'5-10'},
+  {mm: 15,  rgb:[255,245,0],   label:'10-20'},
+  {mm: 25,  rgb:[255,170,0],   label:'20-30'},
+  {mm: 40,  rgb:[255,60,0],    label:'30-50'},
+  {mm: 65,  rgb:[180,0,104],   label:'50-80'},
+  {mm: 90,  rgb:[255,0,255],   label:'>=80'}
+];
+let currentLocation = null;
+let lastResults = [];
+let lastTile = null;
+
+const $ = id => document.getElementById(id);
+function log(msg){ $('log').textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; $('log').scrollTop = $('log').scrollHeight; }
+function setBusy(b){
+  $('locateBtn').disabled=b; $('manualBtn').disabled=b; $('refreshBtn').disabled=b || !currentLocation;
+}
+function parseJmaTime(s){
+  return new Date(Date.UTC(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8), +s.slice(8,10), +s.slice(10,12), +s.slice(12,14)));
+}
+function tileFor(lat, lon, z){
+  const n = 2 ** z;
+  const xFloat = (lon + 180) / 360 * n;
+  const latRad = lat * Math.PI / 180;
+  const yFloat = (1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n;
+  const x = Math.floor(xFloat), y = Math.floor(yFloat);
+  const px = Math.floor((xFloat-x)*256), py = Math.floor((yFloat-y)*256);
+  return {x,y,px,py,z};
+}
+async function fetchJson(url){
+  const r = await fetch(url, {cache:'no-store'});
+  if(!r.ok) throw new Error(`JSON HTTP ${r.status}`);
+  return r.json();
+}
+async function loadBitmap(url){
+  const r = await fetch(url, {cache:'no-store', mode:'cors'});
+  if(!r.ok){
+    if(r.status === 404) return null;
+    throw new Error(`Tile HTTP ${r.status}`);
+  }
+  const blob = await r.blob();
+  return createImageBitmap(blob);
+}
+function rgbDistance(a,b){
+  const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+  return dr*dr + dg*dg + db*db;
+}
+function inferRainMm(r,g,b){
+  let best = null, bestD = Infinity;
+  for(const p of RAIN_PALETTE){
+    const d = rgbDistance([r,g,b], p.rgb);
+    if(d < bestD){ bestD = d; best = p; }
+  }
+  return best;
+}
+function sampleRain(bitmap, px, py){
+  if(!bitmap) return {rain:false, available:false, pixels:0, intensityMm:0, maxMm:0};
+  const c = document.createElement('canvas');
+  c.width = bitmap.width; c.height = bitmap.height;
+  const ctx = c.getContext('2d', {willReadFrequently:true});
+  ctx.drawImage(bitmap,0,0);
+  const x0=Math.max(0,px-SAMPLE_RADIUS), y0=Math.max(0,py-SAMPLE_RADIUS);
+  const x1=Math.min(255,px+SAMPLE_RADIUS), y1=Math.min(255,py+SAMPLE_RADIUS);
+  const img=ctx.getImageData(x0,y0,x1-x0+1,y1-y0+1).data;
+  let colored=0, measured=0, sumMm=0, maxMm=0;
+  let bucketCounts = {};
+  for(let i=0;i<img.length;i+=4){
+    const r=img[i],g=img[i+1],b=img[i+2],a=img[i+3];
+    if(a>20){
+      measured++;
+      if(!(r>245 && g>245 && b>245)){
+        colored++;
+        const bucket = inferRainMm(r,g,b);
+        if(bucket){
+          sumMm += bucket.mm;
+          maxMm = Math.max(maxMm, bucket.mm);
+          bucketCounts[bucket.label] = (bucketCounts[bucket.label] || 0) + 1;
+        }
+      }
+    }
+  }
+  let dominantBucket = null, dominantCount = -1;
+  for(const [k,v] of Object.entries(bucketCounts)){
+    if(v > dominantCount){ dominantBucket = k; dominantCount = v; }
+  }
+  const avgMm = colored ? sumMm / colored : 0;
+  return {
+    rain: avgMm >= RAIN_THRESHOLD,
+    available:true,
+    pixels:colored,
+    measured,
+    intensityMm:Number(avgMm.toFixed(1)),
+    maxMm:Number(maxMm.toFixed(1)),
+    bucket:dominantBucket
+  };
+}
+async function getForecastFrames(){
+  const n2 = await fetchJson(`${JMA}/targetTimes_N2.json`);
+  if(!Array.isArray(n2) || !n2.length) throw new Error('JMA forecast time list is empty');
+  // N2 is forecast list; sort by validtime ascending and retain future frames.
+  const sorted=[...n2].sort((a,b)=>a.validtime.localeCompare(b.validtime));
+  const newestBase = sorted.map(x=>x.basetime).sort().at(-1);
+  let frames = sorted.filter(x=>x.basetime===newestBase);
+  // Fallback: some deployments may contain forecast frames under mixed basetimes.
+  if(frames.length<5) frames=sorted.slice(-20);
+  frames = frames
+    .filter(x => x.elements?.includes('hrpns'))
+    .sort((a,b)=>a.validtime.localeCompare(b.validtime));
+  return frames;
+}
+
+function formatJmaUtc(d){
+  return [
+    d.getUTCFullYear(),
+    String(d.getUTCMonth()+1).padStart(2,'0'),
+    String(d.getUTCDate()).padStart(2,'0'),
+    String(d.getUTCHours()).padStart(2,'0'),
+    String(d.getUTCMinutes()).padStart(2,'0'),
+    String(d.getUTCSeconds()).padStart(2,'0')
+  ].join('');
+}
+function floorUtcHour(d){
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), 0, 0));
+}
+function pointInRing(lon,lat,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+    const hit=((yi>lat)!=(yj>lat)) && (lon < (xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi);
+    if(hit) inside=!inside;
+  }
+  return inside;
+}
+function pointInGeometry(lon,lat,g){
+  if(!g) return false;
+  if(g.type==='Polygon') return g.coordinates.some((ring,idx)=>idx===0 && pointInRing(lon,lat,ring));
+  if(g.type==='MultiPolygon') return g.coordinates.some(poly=>poly.some((ring,idx)=>idx===0 && pointInRing(lon,lat,ring)));
+  return false;
+}
+async function sampleLayerTile(base, valid, element, tile){
+  const url=`${JMA}/${base}/none/${valid}/surf/${element}/${ZOOM}/${tile.x}/${tile.y}.png`;
+  try{
+    const bmp=await loadBitmap(url);
+    if(!bmp) return {available:false, active:false, url};
+    const c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
+    const ctx=c.getContext('2d',{willReadFrequently:true}); ctx.drawImage(bmp,0,0);
+    const img=ctx.getImageData(Math.max(0,tile.px-1),Math.max(0,tile.py-1),3,3).data;
+    let active=false, opaque=0;
+    for(let i=0;i<img.length;i+=4){
+      const a=img[i+3],r=img[i],g=img[i+1],b=img[i+2];
+      if(a>20){opaque++; if(!(r>245&&g>245&&b>245)) active=true;}
+    }
+    bmp.close();
+    return {available:true,active,url,opaque};
+  }catch(e){ return {available:false,active:false,error:e.message,url}; }
+}
+async function loadHazards(lat,lon,tile){
+  const out={thunder:'云意未明',tornado:'云意未明',slmcs:'云意未明'};
+  try{
+    const n3=await fetchJson(`${JMA}/targetTimes_N3.json`);
+    const latest=[...n3].sort((a,b)=>b.validtime.localeCompare(a.validtime));
+    const thFrames=latest.filter(x=>x.elements?.includes('thns')).slice(0,8).sort((a,b)=>a.validtime.localeCompare(b.validtime));
+    const trFrames=latest.filter(x=>x.elements?.includes('trns')).slice(0,8).sort((a,b)=>a.validtime.localeCompare(b.validtime));
+
+    let thunderAt=null;
+    for(const f of thFrames){
+      const s=await sampleLayerTile(f.basetime,f.validtime,'thns',tile);
+      if(s.available && s.active){thunderAt=parseJmaTime(f.validtime);break;}
+    }
+    out.thunder=thunderAt?`雷声或在 ${thunderAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} 靠近`:'一小时内无雷意';
+
+    let tornadoAt=null;
+    for(const f of trFrames){
+      const s=await sampleLayerTile(f.basetime,f.validtime,'trns',tile);
+      if(s.available && s.active){tornadoAt=parseJmaTime(f.validtime);break;}
+    }
+    out.tornado=tornadoAt?`疾风风险约在 ${tornadoAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:'一小时内风势平静';
+
+    const sl=latest.find(x=>x.elements?.includes('slmcs') || x.elements?.includes('slmcs_fcst') || x.elements?.includes('slmcs_unifyfcst'));
+    if(sl){
+      const candidates=['slmcs','slmcs_fcst','slmcs_unifyfcst'].filter(k=>sl.elements?.includes(k));
+      let hit=false;
+      for(const el of candidates){
+        try{
+          const u=`${JMA}/${sl.basetime}/none/${sl.validtime}/surf/${el}/data.geojson?id=${el}`;
+          const g=await fetchJson(u);
+          if(g.features?.some(f=>pointInGeometry(lon,lat,f.geometry))){hit=true;break;}
+        }catch(_){}
+      }
+      out.slmcs=hit?'长雨带正覆过这里':'此刻不在长雨带中';
+    }
+  }catch(e){
+    log(`hazards: ${e.message}`);
+  }
+  $('thunderRisk').textContent=out.thunder;
+  $('tornadoRisk').textContent=out.tornado;
+  $('slmcsRisk').textContent=out.slmcs;
+  return out;
+}
+async function loadLongForecast(lat,lon,tile){
+  const container=$('longForecast');
+  container.innerHTML='<div class="muted">远处的云，还在路上。</div>';
+  const now=new Date();
+  const base=floorUtcHour(now);
+  const rows=[];
+  // Probe the latest hour and one hour back as basetime fallback.
+  const baseCandidates=[base,new Date(base.getTime()-3600000)];
+  for(let h=1;h<=6;h++){
+    let found=null;
+    for(const b of baseCandidates){
+      const v=new Date(b.getTime()+h*3600000);
+      const url=`${JMA_RASRF}/${formatJmaUtc(b)}/none/${formatJmaUtc(v)}/surf/rasrf/${ZOOM}/${tile.x}/${tile.y}.png`;
+      try{
+        const bmp=await loadBitmap(url);
+        if(bmp){
+          const s=sampleRain(bmp,tile.px,tile.py); bmp.close();
+          found={valid:v,mm:s.intensityMm,url};
+          break;
+        }
+      }catch(_){}
+    }
+    rows.push(found);
+  }
+  container.innerHTML=rows.map((r,i)=> r
+    ? `<div class="long-card"><div class="time">${r.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div><div class="rain">${r.mm>=RAIN_THRESHOLD?'🌧️ '+r.mm+' mm/h':'— 无雨'}</div></div>`
+    : `<div class="long-card"><div class="time">+${i+1}h</div><div class="rain">暂无数据</div></div>`).join('');
+  return rows;
+}
+function updateSummary(results,longRows=[]){
+  const valid=results.filter(x=>x.rain!==null);
+  const wet=valid.filter(x=>(x.intensityMm||0)>=RAIN_THRESHOLD);
+  const start=wet[0];
+  let end=null;
+  if(start){
+    const si=valid.indexOf(start);
+    for(let i=si+1;i<valid.length;i++){
+      if((valid[i].intensityMm||0)<RAIN_THRESHOLD){end=valid[i];break;}
+    }
+  }
+  const all=[...valid,...(longRows||[]).filter(Boolean).map(r=>({valid:r.valid,intensityMm:r.mm}))];
+  const peak=all.length?all.reduce((a,b)=>(a.intensityMm||0)>=(b.intensityMm||0)?a:b):null;
+  $('sumStart').textContent=start?`${start.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}（约${start.mins}分后）`:'一小时内无雨';
+  $('sumEnd').textContent=end?end.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):(start?'一小时后仍有雨':'—');
+  $('sumPeak').textContent=peak?`${(peak.intensityMm||0).toFixed(1)} mm/h`:'—';
+  $('sumPeakTime').textContent=peak?peak.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—';
+}
+
+async function checkRain(lat,lon){
+  setBusy(true); $('log').textContent='';
+  $('headline').className='hero'; $('headline').textContent='正在听云…';
+  $('detail').textContent='云在远处，也在靠近。';
+  $('timeline').innerHTML='';
+  $('thunderRisk').textContent='静候'; $('tornadoRisk').textContent='静候'; $('slmcsRisk').textContent='静候';
+  $('longForecast').innerHTML='<div class="muted">远处的云，还在路上。</div>';
+  try{
+    log(`位置 ${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+    const tile=tileFor(lat,lon,ZOOM);
+    lastTile = tile;
+    log(`XYZ z=${ZOOM} x=${tile.x} y=${tile.y}, pixel=${tile.px},${tile.py}`);
+    const frames=await getForecastFrames();
+    if(!frames.length) throw new Error('没有找到 hrpns 预测帧');
+    const base=parseJmaTime(frames[0].basetime);
+    $('baseTimePill').textContent=`云图时刻：${base.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    log(`取得 ${frames.length} 个预测时次，basetime=${frames[0].basetime}`);
+
+    const results=[];
+    for(const f of frames){
+      const valid=parseJmaTime(f.validtime);
+      let mins=Math.round((valid-base)/60000);
+      if(mins < 0 || mins > 60) continue;
+      const url=`${JMA}/${f.basetime}/none/${f.validtime}/surf/hrpns/${ZOOM}/${tile.x}/${tile.y}.png`;
+      try{
+        const bmp=await loadBitmap(url);
+        const s=sampleRain(bmp,tile.px,tile.py);
+        results.push({mins,valid,rain:s.rain,available:s.available,url,intensityMm:s.intensityMm,maxMm:s.maxMm,bucket:s.bucket});
+        log(`+${mins} min : ${s.intensityMm} mm/h est${s.bucket?` (${s.bucket})`:''}${bmp?'':' (tile 404)'}`);
+        bmp?.close();
+      }catch(e){
+        // Cross-origin errors are actionable and should be visible.
+        log(`+${mins} min : ERROR ${e.message}`);
+        results.push({mins,valid,rain:null,error:e.message,url});
+      }
+    }
+    if(!results.length) throw new Error('JMA 返回了时次，但没有获得 0–60 分钟预测帧');
+
+    lastResults = results;
+    render(results);
+    updateSummary(results, []);
+    const [hazards,longRows] = await Promise.all([
+      loadHazards(lat,lon,tile),
+      loadLongForecast(lat,lon,tile)
+    ]);
+    updateSummary(results,longRows);
+  }catch(e){
+    console.error(e);
+    $('headline').className='hero bad';
+    $('headline').textContent='读取失败';
+    $('detail').innerHTML=`${escapeHtml(e.message)}<br><br>如果诊断中出现 CORS / Failed to fetch，说明 JMA 当前端点不允许浏览器直接读取像素；正式版只需加一个很薄的 Cloud Run 代理即可，核心算法无需改变。`;
+    log(`FATAL: ${e.stack || e.message}`);
+  }finally{ setBusy(false); }
+}
+function render(results){
+  const valid=results.filter(x=>x.rain!==null);
+  const rainingNow=valid.find(x=>x.mins===0)?.rain;
+  const first=valid.find(x=>x.mins>0 && (x.intensityMm||0) >= RAIN_THRESHOLD);
+  const anyErrors=results.some(x=>x.rain===null);
+
+  if((valid.find(x=>x.mins===0)?.intensityMm || 0) >= RAIN_THRESHOLD){
+    $('headline').className='hero bad';
+    $('headline').textContent='雨已在身边';
+    const nowMm = valid.find(x=>x.mins===0)?.intensityMm || 0;
+    $('detail').textContent= first ? `此刻雨势约 ${nowMm} mm/h，雨意还会延续。` : `此刻雨势约 ${nowMm} mm/h。`;
+  }else if(first){
+    $('headline').className='hero warn';
+    $('headline').textContent=`雨，约 ${first.mins} 分钟后到`;
+    $('detail').textContent=`大约在 ${first.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}，第一阵雨意会落到这里。`;
+  }else if(valid.length){
+    $('headline').className='hero ok';
+    $('headline').textContent='一小时内，雨还不会来';
+    $('detail').textContent='此刻云路平静，可以慢一点。';
+  }else{
+    $('headline').className='hero bad';
+    $('headline').textContent='云意未明';
+    $('detail').textContent='这一刻没能听清云的回答。';
+  }
+  if(anyErrors) $('detail').textContent += ' 有几段云图暂时失语。';
+
+  $('timeline').innerHTML=results
+    .filter(x=>x.mins>=0 && x.mins<=60)
+    .map((x,i)=>`<div class="t ${x.rain?'rain':''}" data-frame-index="${results.indexOf(x)}" title="点击查看预测图">
+      <div class="m">+${x.mins} min · ${x.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+      <div class="v">${x.rain===true?`🌧 ${x.intensityMm} mm/h`:x.rain===false?'— 无雨':'⚠️ 失败'}</div>
+    </div>`).join('');
+
+  document.querySelectorAll('[data-frame-index]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const idx=Number(el.dataset.frameIndex);
+      openFrame(lastResults[idx]);
+    });
+  });
+  renderRainChart(results);
+}
+function renderRainChart(results){
+  const svg = $('rainChart');
+  if(!svg) return;
+  const data = results
+    .filter(x=>x.mins>=0 && x.mins<=60 && x.rain!==null)
+    .map(x=>({mins:x.mins, time:x.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), mm:Math.max(0, x.intensityMm || 0)}));
+
+  const W=680, H=240, M={l:48,r:18,t:14,b:42};
+  const innerW=W-M.l-M.r, innerH=H-M.t-M.b;
+
+  if(!data.length){
+    svg.innerHTML = `<text x="24" y="40" fill="#8e9aaa" font-size="14">暂无可绘制数据</text>`;
+    return;
+  }
+
+  const maxMmRaw = Math.max(...data.map(d=>d.mm), RAIN_THRESHOLD);
+  const yMaxCandidates = [1, 2, 5, 10, 20, 30, 50, 80, 100];
+  const yMax = yMaxCandidates.find(v => v >= maxMmRaw) || Math.ceil(maxMmRaw / 20) * 20;
+
+  const x = mins => M.l + mins / 60 * innerW;
+  const y = mm => M.t + innerH - (mm / yMax) * innerH;
+
+  const ticks = [0, yMax/4, yMax/2, yMax*3/4, yMax].map(v => Number(v.toFixed(1)));
+  const xTicks = data.map(d=>d.mins);
+
+  const pts = data.map(d=>({x:x(d.mins), y:y(d.mm), ...d}));
+
+  function smoothPath(points){
+    if(points.length===1) return `M ${points[0].x} ${points[0].y}`;
+    if(points.length===2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for(let i=0;i<points.length-1;i++){
+      const p0 = points[i-1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i+1];
+      const p3 = points[i+2] || p2;
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+      d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+    }
+    return d;
+  }
+
+  const linePath = smoothPath(pts);
+  const areaPath = linePath + ` L ${pts[pts.length-1].x} ${H-M.b} L ${pts[0].x} ${H-M.b} Z`;
+
+  let parts = [];
+  parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`);
+
+  // horizontal grid
+  for(const t of ticks){
+    parts.push(`<line x1="${M.l}" y1="${y(t)}" x2="${W-M.r}" y2="${y(t)}" stroke="#26303d" stroke-width="1"/>`);
+    parts.push(`<text x="${M.l-8}" y="${y(t)+4}" text-anchor="end" fill="#8e9aaa" font-size="12">${t}</text>`);
+  }
+
+  // vertical x ticks
+  for(const d of data){
+    const xx = x(d.mins);
+    parts.push(`<line x1="${xx}" y1="${M.t}" x2="${xx}" y2="${H-M.b}" stroke="#1a2230" stroke-width="1"/>`);
+    parts.push(`<text x="${xx}" y="${H-20}" text-anchor="middle" fill="#8e9aaa" font-size="12">${d.time}</text>`);
+  }
+
+  // threshold line
+  parts.push(`<line x1="${M.l}" y1="${y(RAIN_THRESHOLD)}" x2="${W-M.r}" y2="${y(RAIN_THRESHOLD)}" stroke="#ffd166" stroke-dasharray="4 4" stroke-width="1.5"/>`);
+  parts.push(`<text x="${W-M.r}" y="${y(RAIN_THRESHOLD)-6}" text-anchor="end" fill="#ffd166" font-size="12">雨意阈值 ${RAIN_THRESHOLD} mm/h</text>`);
+
+  // area and line
+  parts.push(`<path d="${areaPath}" fill="rgba(112,165,255,0.18)"/>`);
+  parts.push(`<path d="${linePath}" fill="none" stroke="#70a5ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`);
+
+  // points
+  for(const p of pts){
+    parts.push(`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#f4f7fb"/>`);
+    parts.push(`<text x="${p.x}" y="${p.y-10}" text-anchor="middle" fill="#c9d5e2" font-size="11">${p.mm.toFixed(1)}</text>`);
+  }
+
+  // axis labels
+  parts.push(`<text x="${M.l}" y="230" fill="#8e9aaa" font-size="12">往后一小时</text>`);
+  parts.push(`<text x="18" y="${M.t+8}" fill="#8e9aaa" font-size="12">mm/h</text>`);
+
+  svg.innerHTML = parts.join('');
+  const peak = data.reduce((a,b)=> a.mm>=b.mm?a:b);
+  $('chartNote').textContent = `把每五分钟的雨意轻轻连起来。最盛约 ${peak.mm.toFixed(1)} mm/h，落在 ${peak.time}。`;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+
+function openFrame(frame){
+  if(!frame) return;
+  $('frameTitle').textContent = `${frame.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} 的云`;
+  $('frameImg').src = frame.url;
+  const time = frame.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const state = frame.rain===true ? `估算降水强度约 ${frame.intensityMm} mm/h` : frame.rain===false ? '未检测到可判定降水' : '该帧读取失败';
+  $('frameMeta').innerHTML =
+    `时刻：${time}<br>` +
+    `雨意：${state}<br>` +
+    (currentLocation ? `位置：${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}<br>` : '') +
+    `云图：JMA hrpns / z=${ZOOM}` +
+    (lastTile ? `<br>Tile：${lastTile.x}/${lastTile.y}，当前位置像素约 ${lastTile.px},${lastTile.py}` : '');
+  $('frameModal').classList.add('open');
+  $('frameModal').setAttribute('aria-hidden','false');
+}
+function closeFrame(){
+  $('frameModal').classList.remove('open');
+  $('frameModal').setAttribute('aria-hidden','true');
+  $('frameImg').src='';
+}
+$('closeModal').onclick=closeFrame;
+$('frameModal').addEventListener('click',e=>{ if(e.target===$('frameModal')) closeFrame(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeFrame(); });
+
+$('locateBtn').onclick=()=>{
+  if(!navigator.geolocation){
+    $('headline').textContent='浏览器不支持定位'; return;
+  }
+  setBusy(true);
+  $('headline').textContent='获取定位中…';
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      currentLocation={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};
+      $('lat').value=currentLocation.lat.toFixed(6);
+      $('lon').value=currentLocation.lon.toFixed(6);
+      $('locationPill').textContent=`此刻所在：±${Math.round(currentLocation.accuracy)}m`;
+      $('refreshBtn').disabled=false;
+      checkRain(currentLocation.lat,currentLocation.lon);
+    },
+    e=>{
+      setBusy(false);
+      $('headline').className='hero bad';
+      $('headline').textContent='定位失败';
+      $('detail').textContent=`${e.message}。可以手动输入经纬度测试。`;
+    },
+    {enableHighAccuracy:true,timeout:12000,maximumAge:60000}
+  );
+};
+$('manualBtn').onclick=()=>{
+  const lat=Number($('lat').value), lon=Number($('lon').value);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){
+    alert('请输入有效经纬度'); return;
+  }
+  currentLocation={lat,lon,accuracy:null};
+  $('locationPill').textContent='此刻所在：手动坐标';
+  $('refreshBtn').disabled=false;
+  checkRain(lat,lon);
+};
+$('refreshBtn').onclick=()=>currentLocation && checkRain(currentLocation.lat,currentLocation.lon);
+</script>
+</body>
+</html>
