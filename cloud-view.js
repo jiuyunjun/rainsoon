@@ -138,12 +138,25 @@ function renderCloudMist(source){
       const bend=Math.sin(x*.021+layer*2.4)*18+Math.sin(x*.047+y*.011)*7;
       const ribbon=.5+.5*Math.sin((y+bend)*.075+layer*3);
       pixels.data[i]=204;pixels.data[i+1]=220;pixels.data[i+2]=232;
-      pixels.data[i+3]*=(.08+.55*ribbon*ribbon);
+      pixels.data[i+3]*=(.16+.8*ribbon*ribbon);
     }
     ctx.putImageData(pixels,0,0);
   });
   wrap.hidden=false;
+  syncCloudMotion();
 }
+const cloudMotionMedia=matchMedia('(prefers-reduced-motion: reduce)');
+let cloudMotionOverride=null;
+function cloudMotionEnabled(){ return cloudMotionOverride ?? !cloudMotionMedia.matches; }
+function syncCloudMotion(){
+  const enabled=cloudMotionEnabled();
+  document.documentElement.classList.toggle('mist-motion-on',enabled);
+  const button=document.getElementById('cloudMotionToggle');
+  button.textContent=t(enabled?'cloud_motion_on':'cloud_motion_off');
+  button.setAttribute('aria-pressed',String(enabled));
+  button.disabled=document.getElementById('cloudMap').classList.contains('raw-view');
+}
+cloudMotionMedia.addEventListener('change',syncCloudMotion);
 document.addEventListener('visibilitychange',()=>{
   document.documentElement.classList.toggle('page-hidden',document.hidden);
 });

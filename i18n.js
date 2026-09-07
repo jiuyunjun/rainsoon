@@ -101,6 +101,8 @@ window.I18N = {
 
     diag_title: "看不见的细节",
 
+    cloud_motion_on: "雾气：流动",
+    cloud_motion_off: "雾气：静止",
     cloud_opacity: "云层可见度",
     cloud_depth_key: "降水由弱到强：薄雾 → 隆起云团",
     map_credit: "底图：国土地理院（色调调整）",
@@ -231,6 +233,8 @@ window.I18N = {
 
     diag_title: "観測の舞台裏",
 
+    cloud_motion_on: "霧：動きあり",
+    cloud_motion_off: "霧：静止",
     cloud_opacity: "雲の表示濃度",
     cloud_depth_key: "雨が強いほど：薄い霧 → 厚く盛り上がる雲",
     map_credit: "地図：国土地理院（色調調整）",
@@ -361,6 +365,8 @@ window.I18N = {
 
     diag_title: "Behind the forecast",
 
+    cloud_motion_on: "Mist: flowing",
+    cloud_motion_off: "Mist: still",
     cloud_opacity: "Cloud opacity",
     cloud_depth_key: "Lighter → heavier rain: mist → billowing clouds",
     map_credit: "Map: GSI Japan (color adjusted)",

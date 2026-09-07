@@ -285,7 +285,7 @@
     @media(max-width:640px){.lang-switch button{min-height:44px}.topbar{gap:10px;margin-bottom:10px}.hero{font-size:clamp(24px,6.5vw,30px)}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.ripple:before{opacity:.6}.ripple:after{inset:8px;opacity:.4}}
   </style>
-  <link rel="stylesheet" href="cloud-view.css">
+  <link rel="stylesheet" href="cloud-view.css?v=mist-2">
 </head>
 <body>
 <main>
@@ -361,13 +361,13 @@
   <div class="small" data-i18n="footer">云图取自日本气象厅（JMA）的高解像度降水临近预报。雨势由公开雨云图层估算而来，适合看趋势与来去，不替代正式气象警报。</div>
 </main>
 
-<div id="frameModal" class="modal" aria-hidden="true">
+<div id="frameModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="frameTitle" aria-hidden="true" inert>
   <div class="modal-card">
     <div class="modal-head">
       <div id="frameTitle" class="modal-title" data-i18n="modal_title_default">这一刻的云</div>
       <button id="closeModal" class="close-btn" data-i18n="modal_close">关闭</button>
     </div>
-    <div class="cloud-toolbar"><span data-i18n="cloud_heading">降水云境</span><button id="cloudToggle" type="button" aria-pressed="false" data-i18n="cloud_raw">查看原始降水图</button></div>
+    <div class="cloud-toolbar"><span data-i18n="cloud_heading">降水云境</span><div class="cloud-actions"><button id="cloudMotionToggle" type="button" aria-pressed="true">雾气：流动</button><button id="cloudToggle" type="button" aria-pressed="false" data-i18n="cloud_raw">查看原始降水图</button></div></div>
     <div class="cloud-controls"><label for="cloudOpacity" data-i18n="cloud_opacity">云层浓度</label><input id="cloudOpacity" type="range" min="0" max="100" value="78"><output id="cloudOpacityValue" for="cloudOpacity">78%</output></div>
     <div class="cloud-depth-key small" data-i18n="cloud_depth_key">降水由弱到强：薄雾 → 隆起云团</div>
     <div class="cloud-stage">
@@ -615,6 +615,33 @@ function renderHazards(f){
     : f.band ? t('hz_band_hit') : t('hz_band_none');
 }
 
+// JMA may list a band layer before its GeoJSON is available. Cache each
+// advertised resource (including missing responses) to avoid probing variants
+// repeatedly. Unknown data must never be reported as "no rain band".
+const rainBandCache=new Map();
+async function loadRainBand(lat,lon,frames){
+  const types=['slmcs_unify','slmcs_unifyfcst','slmcs','slmcs_fcst'];
+  const frame=[...frames].sort((a,b)=>b.validtime.localeCompare(a.validtime)).find(f=>types.some(el=>f.elements?.includes(el)));
+  if(!frame) return null;
+  const element=types.find(el=>frame.elements.includes(el));
+  const url=`${JMA}/${frame.basetime}/none/${frame.validtime}/surf/${element}/data.geojson?id=${element}`;
+  if(!rainBandCache.has(url)){
+    const request=(async()=>{
+      try{
+        const response=await fetch(url,{mode:'cors',cache:'no-store'});
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data=await response.json();
+        if(data.type!=='FeatureCollection'||!Array.isArray(data.features)) throw new Error('Invalid GeoJSON');
+        return data;
+      }catch(e){ log(`rain band unavailable (${element} ${frame.validtime}): ${e.message}`); return null; }
+    })();
+    rainBandCache.set(url,request);
+    if(rainBandCache.size>8) rainBandCache.delete(rainBandCache.keys().next().value);
+  }
+  const data=await rainBandCache.get(url);
+  return data ? data.features.some(f=>pointInGeometry(lon,lat,f.geometry)) : null;
+}
+
 async function loadHazards(lat,lon,tile){
   const facts={probed:false, thunderAt:null, tornadoAt:null, band:null};
   // 雷/龙卷图层不发布到 z=10，得按 HAZARD_ZOOM 重新算一次瓦片与像素。
@@ -635,19 +662,8 @@ async function loadHazards(lat,lon,tile){
       if(s.available && s.active){facts.tornadoAt=parseJmaTime(f.validtime);break;}
     }
 
-    const sl=latest.find(x=>x.elements?.includes('slmcs') || x.elements?.includes('slmcs_fcst') || x.elements?.includes('slmcs_unifyfcst'));
-    if(sl){
-      const candidates=['slmcs','slmcs_fcst','slmcs_unifyfcst'].filter(k=>sl.elements?.includes(k));
-      let hit=false;
-      for(const el of candidates){
-        try{
-          const u=`${JMA}/${sl.basetime}/none/${sl.validtime}/surf/${el}/data.geojson?id=${el}`;
-          const g=await fetchJson(u);
-          if(g.features?.some(f=>pointInGeometry(lon,lat,f.geometry))){hit=true;break;}
-        }catch(_){}
-      }
-      facts.band=hit;
-    }
+    facts.band=await loadRainBand(lat,lon,latest);
+
   }catch(e){
     log(`hazards: ${e.message}`);
   }
@@ -841,12 +857,13 @@ function render(results, longRows){
 
   $('timeline').innerHTML=results
     .filter(x=>x.mins>=0 && x.mins<=60)
-    .map((x,i)=>`<div class="t ${x.rain?'rain':''} ${x.mins===0?'is-now':''}" data-frame-index="${results.indexOf(x)}" title="${escapeHtml(x.mins===0?t('tl_title_now'):t('tl_title_forecast'))}">
+    .map((x,i)=>`<div class="t ${x.rain?'rain':''} ${x.mins===0?'is-now':''}" role="button" tabindex="0" data-frame-index="${results.indexOf(x)}" title="${escapeHtml(x.mins===0?t('tl_title_now'):t('tl_title_forecast'))}">
       <div class="m">${escapeHtml(x.mins===0?t('tl_now'):t('tl_ahead',{mins:x.mins}))} · ${hhmm(x.valid)}</div>
       <div class="v">${x.rain===true?`🌧 ${x.intensityMm} mm/h`:escapeHtml(x.rain===false?t('tl_no_rain'):t('tl_failed'))}</div>
     </div>`).join('');
 
   document.querySelectorAll('[data-frame-index]').forEach(el=>{
+    el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } });
     el.addEventListener('click',()=>{
       const idx=Number(el.dataset.frameIndex);
       openFrame(lastResults[idx]);
@@ -943,8 +960,11 @@ function renderRainChart(results){
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 
+let frameReturnFocus=null;
 function openFrame(frame){
   if(!frame) return;
+  const wasOpen=$('frameModal').classList.contains('open');
+  if(!wasOpen) frameReturnFocus=document.activeElement;
   lastFrame = frame;
   $('frameTitle').textContent = t('modal_title',{time:hhmm(frame.valid)});
   if($('frameImg').getAttribute('src') !== frame.url){
@@ -975,11 +995,14 @@ function openFrame(frame){
   positionMarker();
   syncCloudToggle();
   $('frameModal').classList.add('open');
+  $('frameModal').inert=false;
+  $('frameModal').setAttribute('aria-hidden','false');
+  document.querySelector('main').inert=true;
   document.body.classList.add('frame-open');
   positionMarker();
   renderCloudAxes(lastTile, ZOOM);
   updateGSIBasemap(lastTile, ZOOM);
-  $('frameModal').setAttribute('aria-hidden','false');
+  if(!wasOpen) $('closeModal').focus({preventScroll:true});
   window.track('frame_view', { minutes_ahead: frame.mins, raining: frame.rain === true });
 }
 // 瓦片是 256×256，你在其中的位置是 (px,py)，几乎从不落在正中。
@@ -999,6 +1022,14 @@ function positionMarker(){
 }
 
 function closeFrame(){
+  if(!$('frameModal').classList.contains('open')) return;
+  document.querySelector('main').inert=false;
+  // Move focus out before hiding/inerting its ancestor; otherwise Chromium
+  // refuses aria-hidden and assistive technology can remain in a closed dialog.
+  const target=frameReturnFocus?.isConnected && !frameReturnFocus.closest('#frameModal') && frameReturnFocus!==document.body ? frameReturnFocus : $('manualBtn');
+  target.focus({preventScroll:true});
+  if($('frameModal').contains(document.activeElement)) document.activeElement.blur();
+  $('frameModal').inert=true;
   $('cloudMist').hidden=true;
   document.body.classList.remove('frame-open');
   $('frameModal').classList.remove('open');
@@ -1010,6 +1041,7 @@ function closeFrame(){
 }
 $('closeModal').onclick=closeFrame;
 function syncCloudToggle(){
+  syncCloudMotion();
   syncBasemapStatus();
   if($('cloudStatus').dataset.key) setCloudStatus($('cloudStatus').dataset.key);
   const raw=$('cloudMap').classList.contains('raw-view');
@@ -1018,13 +1050,23 @@ function syncCloudToggle(){
 }
 function setCloudStatus(key){ $('cloudStatus').dataset.key=key; $('cloudStatus').textContent=t(key); }
 $('cloudToggle').onclick=()=>{ $('cloudMap').classList.toggle('raw-view'); syncCloudToggle(); };
+$('cloudMotionToggle').onclick=()=>{ cloudMotionOverride=!cloudMotionEnabled(); syncCloudMotion(); };
 $('cloudOpacity').oninput=()=>{
   $('cloudMap').style.setProperty('--cloud-opacity',Number($('cloudOpacity').value)/100);
   $('cloudOpacityValue').textContent=$('cloudOpacity').value+'%';
 };
 new ResizeObserver(()=>{ if($('frameModal').classList.contains('open')){ positionMarker(); renderCloudAxes(lastTile, ZOOM); updateGSIBasemap(lastTile, ZOOM); } }).observe($('cloudMap'));
 $('frameModal').addEventListener('click',e=>{ if(e.target===$('frameModal')) closeFrame(); });
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeFrame(); });
+document.addEventListener('keydown',e=>{
+  if(!$('frameModal').classList.contains('open')) return;
+  if(e.key==='Escape'){ e.preventDefault(); closeFrame(); }
+  if(e.key==='Tab'){
+    const items=[...$('frameModal').querySelectorAll('button:not(:disabled),input:not(:disabled),a[href]')].filter(el=>el.getClientRects().length);
+    const first=items[0],last=items[items.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  }
+});
 
 $('locateBtn').onclick=()=>{
   window.track('locate_click', { method: 'gps' });
