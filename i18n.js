@@ -101,6 +101,12 @@ window.I18N = {
 
     diag_title: "看不见的细节",
 
+    cloud_heading: "降水云境",
+    cloud_raw: "查看原始降水图",
+    cloud_rendered: "查看立体云层",
+    cloud_north: "↑ 北 · 经度 / 纬度",
+    cloud_fallback: "云层渲染不可用，显示原图",
+    cloud_note: "云层为降水分布的艺术化呈现，非卫星实拍；细节不代表更高的观测精度。",
     modal_title_default: "这一刻的云",
     modal_title: "{time} 的云",
     modal_close: "关闭",
@@ -219,6 +225,12 @@ window.I18N = {
 
     diag_title: "観測の舞台裏",
 
+    cloud_heading: "雨雲の風景",
+    cloud_raw: "元の降水画像を見る",
+    cloud_rendered: "立体的な雲を見る",
+    cloud_north: "↑ 北 · 経度 / 緯度",
+    cloud_fallback: "雲を描画できないため元画像を表示",
+    cloud_note: "降水分布をもとにした雲の表現です。衛星写真ではなく、細部は観測精度の向上を示すものではありません。",
     modal_title_default: "ひとときの雨雲",
     modal_title: "{time} の雲",
     modal_close: "閉じる",
@@ -337,6 +349,12 @@ window.I18N = {
 
     diag_title: "Behind the forecast",
 
+    cloud_heading: "PRECIPITATION / CLOUDSCAPE",
+    cloud_raw: "View original radar",
+    cloud_rendered: "View cloud relief",
+    cloud_north: "↑ N · Longitude / Latitude",
+    cloud_fallback: "Cloud rendering unavailable; showing original",
+    cloud_note: "An artistic rendering of precipitation, not a satellite photograph. Added detail does not increase observation accuracy.",
     modal_title_default: "A moment in the clouds",
     modal_title: "The clouds at {time}",
     modal_close: "Close",

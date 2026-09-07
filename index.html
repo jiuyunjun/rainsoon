@@ -285,6 +285,7 @@
     @media(max-width:640px){.lang-switch button{min-height:44px}.topbar{gap:10px;margin-bottom:10px}.hero{font-size:clamp(24px,6.5vw,30px)}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.ripple:before{opacity:.6}.ripple:after{inset:8px;opacity:.4}}
   </style>
+  <link rel="stylesheet" href="cloud-view.css">
 </head>
 <body>
 <main>
@@ -366,18 +367,26 @@
       <div id="frameTitle" class="modal-title" data-i18n="modal_title_default">这一刻的云</div>
       <button id="closeModal" class="close-btn" data-i18n="modal_close">关闭</button>
     </div>
-    <div class="map-wrap">
-      <img id="frameImg" data-i18n-alt="modal_img_alt" alt="雨临 · 降水云图">
+    <div class="cloud-toolbar"><span data-i18n="cloud_heading">降水云境</span><button id="cloudToggle" type="button" aria-pressed="false" data-i18n="cloud_raw">查看原始降水图</button></div>
+    <div class="cloud-stage">
+    <div class="map-wrap" id="cloudMap">
+      <img id="frameImg" crossorigin="anonymous" data-i18n-alt="modal_img_alt" alt="雨临 · 降水云图">
+      <canvas id="cloudCanvas" aria-hidden="true"></canvas>
+      <svg id="cloudAxes" viewBox="0 0 256 256" aria-hidden="true"></svg>
       <div id="marker" class="marker">
         <div class="sample-box"></div>
         <div class="crosshair"></div>
         <div class="dot"></div>
       </div>
     </div>
+    </div>
+    <div class="cloud-footer"><span id="cloudScale"></span><span id="cloudStatus" role="status"></span></div>
+    <div class="small cloud-note" data-i18n="cloud_note">云层为降水分布的艺术化呈现，非卫星实拍；细节不代表更高的观测精度。</div>
     <div id="frameMeta" class="frame-meta"></div>
   </div>
 </div>
 
+<script src="cloud-view.js"></script>
 <script>
 const JMA = 'https://www.jma.go.jp/bosai/jmatile/data/nowc';
 const JMA_RASRF = 'https://www.jma.go.jp/bosai/jmatile/data/rasrf';
@@ -936,8 +945,15 @@ function openFrame(frame){
   if($('frameImg').getAttribute('src') !== frame.url){
     const wrap = $('frameImg').parentElement;
     wrap.classList.add('is-loading');
-    $('frameImg').onload = ()=>wrap.classList.remove('is-loading');
-    $('frameImg').onerror = ()=>{wrap.classList.remove('is-loading'); $('frameImg').alt=t('modal_state_fail');};
+    $('cloudCanvas').getContext('2d').clearRect(0,0,$('cloudCanvas').width,$('cloudCanvas').height);
+    setCloudStatus('loading_clouds');
+    $('frameImg').onload = ()=>{
+      wrap.classList.remove('is-loading');
+      try{ renderCloudTexture($('frameImg'), $('cloudCanvas')); setCloudStatus('cloud_north'); }
+      catch(e){ wrap.classList.add('raw-view'); setCloudStatus('cloud_fallback'); }
+      syncCloudToggle();
+    };
+    $('frameImg').onerror = ()=>{wrap.classList.remove('is-loading'); $('frameImg').alt=t('modal_state_fail'); setCloudStatus('modal_state_fail');};
     $('frameImg').src = frame.url;
   }
   const state = frame.rain===true ? t('modal_state_rain',{mm:frame.intensityMm})
@@ -951,7 +967,10 @@ function openFrame(frame){
     kv('modal_k_layer', `JMA hrpns / z=${ZOOM}`) +
     (lastTile ? '<br>' + kv('modal_k_tile', escapeHtml(t('modal_tile_val',{x:lastTile.x,y:lastTile.y,px:lastTile.px,py:lastTile.py}))) : '');
   positionMarker();
+  syncCloudToggle();
   $('frameModal').classList.add('open');
+  positionMarker();
+  renderCloudAxes(lastTile, ZOOM);
   $('frameModal').setAttribute('aria-hidden','false');
   window.track('frame_view', { minutes_ahead: frame.mins, raining: frame.rain === true });
 }
@@ -966,7 +985,7 @@ function positionMarker(){
   const py = lastTile ? lastTile.py + 0.5 : 128;
   m.style.left = (px / 256 * 100) + '%';
   m.style.top  = (py / 256 * 100) + '%';
-  const side = ((SAMPLE_RADIUS * 2 + 1) / 256 * 100) + '%';
+  const side = ((SAMPLE_RADIUS * 2 + 1) / 256 * $('cloudMap').clientWidth) + 'px';
   const box = m.querySelector('.sample-box');
   if(box){ box.style.width = side; box.style.height = side; }
 }
@@ -974,10 +993,21 @@ function positionMarker(){
 function closeFrame(){
   $('frameModal').classList.remove('open');
   $('frameModal').setAttribute('aria-hidden','true');
+  $('frameImg').onload = null;
+  $('frameImg').onerror = null;
   $('frameImg').removeAttribute('src');
   $('frameImg').parentElement.classList.remove('is-loading');
 }
 $('closeModal').onclick=closeFrame;
+function syncCloudToggle(){
+  if($('cloudStatus').dataset.key) setCloudStatus($('cloudStatus').dataset.key);
+  const raw=$('cloudMap').classList.contains('raw-view');
+  $('cloudToggle').textContent=t(raw?'cloud_rendered':'cloud_raw');
+  $('cloudToggle').setAttribute('aria-pressed',String(raw));
+}
+function setCloudStatus(key){ $('cloudStatus').dataset.key=key; $('cloudStatus').textContent=t(key); }
+$('cloudToggle').onclick=()=>{ $('cloudMap').classList.toggle('raw-view'); syncCloudToggle(); };
+new ResizeObserver(()=>{ if($('frameModal').classList.contains('open')){ positionMarker(); renderCloudAxes(lastTile, ZOOM); } }).observe($('cloudMap'));
 $('frameModal').addEventListener('click',e=>{ if(e.target===$('frameModal')) closeFrame(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeFrame(); });
 
