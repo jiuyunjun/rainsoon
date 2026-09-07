@@ -38,6 +38,7 @@
     .muted{color:var(--muted)}
     button{appearance:none;border:0;border-radius:14px;padding:13px 16px;font-size:16px;font-weight:700;cursor:pointer;background:var(--accent);color:#07101e;width:100%}
     button.secondary{background:#202936;color:var(--text);margin-top:10px}
+    .btn-note{display:block;margin-top:3px;font-size:11px;font-weight:500;letter-spacing:.02em;opacity:.62}
     button:disabled{opacity:.55;cursor:wait}
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .row > *{flex:1 1 180px}
@@ -47,6 +48,8 @@
     .t{border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;background:#0c1118}
     .t .m{font-size:13px;color:var(--muted)} .t .v{font-size:14px;font-weight:700;margin-top:5px}
     .t.rain{border-color:#6d83ff;background:#111831}
+    .t.is-now{border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(112,165,255,.35)}
+    .t.is-now .m{color:var(--accent)}
     .small{font-size:12px;line-height:1.6;color:var(--muted)}
     .status{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#b9c4d1;max-height:180px;overflow:auto}
 .diag-card summary{list-style:none}.diag-card summary::-webkit-details-marker{display:none}.diag-card summary:after{content:"＋";float:right;color:var(--muted)}.diag-card[open] summary:after{content:"－"}
@@ -244,8 +247,8 @@
   <div class="sub">看一眼云的来路，知一场雨离你还有多远。</div>
 
   <div class="card">
-    <button id="locateBtn">听雨</button>
-    <button id="refreshBtn" class="secondary" disabled>再看一眼云</button>
+    <button id="locateBtn">听雨<span class="btn-note">寻你此刻所在</span></button>
+    <button id="refreshBtn" class="secondary" disabled>再看一眼云<span class="btn-note">留在原地，只换新云图</span></button>
     <div style="height:14px"></div>
     <div class="row">
       <div>
@@ -257,7 +260,7 @@
         <input id="lon" inputmode="decimal" placeholder="139.7671">
       </div>
     </div>
-    <button id="manualBtn" class="secondary">从这里听雨</button>
+    <button id="manualBtn" class="secondary">从这里听雨<span class="btn-note">改用上面填的坐标</span></button>
   </div>
 
   <div class="card">
@@ -430,7 +433,12 @@ function sampleRain(bitmap, px, py){
   };
 }
 async function getForecastFrames(){
-  const n2 = await fetchJson(`${JMA}/targetTimes_N2.json`);
+  // N2 是预报列表，validtime 最早为 basetime+5min，里面没有「此刻」。
+  // 此刻要从 N1 观测列表取：它最新一条的 basetime==validtime，正是当前实况。
+  const [n1, n2] = await Promise.all([
+    fetchJson(`${JMA}/targetTimes_N1.json`).catch(()=>[]),
+    fetchJson(`${JMA}/targetTimes_N2.json`)
+  ]);
   if(!Array.isArray(n2) || !n2.length) throw new Error('JMA forecast time list is empty');
   // N2 is forecast list; sort by validtime ascending and retain future frames.
   const sorted=[...n2].sort((a,b)=>a.validtime.localeCompare(b.validtime));
@@ -441,6 +449,16 @@ async function getForecastFrames(){
   frames = frames
     .filter(x => x.elements?.includes('hrpns'))
     .sort((a,b)=>a.validtime.localeCompare(b.validtime));
+
+  const base = frames[0] ? frames[0].basetime : newestBase;
+  const obs = (Array.isArray(n1) ? n1 : [])
+    .filter(x => x.elements?.includes('hrpns') && x.basetime===x.validtime)
+    .sort((a,b)=>a.validtime.localeCompare(b.validtime));
+  // 只认与预报同一 basetime 的观测帧：这样 frames[0].basetime 恒为预报基准时刻，
+  // 下游按它算 mins 才不会把 +5min 的帧误当成「此刻」。
+  const now = obs.find(x=>x.validtime===base);
+  if(now && !frames.some(x=>x.validtime===now.validtime)) frames.unshift(now);
+
   return frames;
 }
 
@@ -704,8 +722,8 @@ function render(results, longRows){
 
   $('timeline').innerHTML=results
     .filter(x=>x.mins>=0 && x.mins<=60)
-    .map((x,i)=>`<div class="t ${x.rain?'rain':''}" data-frame-index="${results.indexOf(x)}" title="点击查看预测图">
-      <div class="m">+${x.mins} min · ${x.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+    .map((x,i)=>`<div class="t ${x.rain?'rain':''} ${x.mins===0?'is-now':''}" data-frame-index="${results.indexOf(x)}" title="${x.mins===0?'此刻的实况云图':'点击查看预测图'}">
+      <div class="m">${x.mins===0?'此刻':'+'+x.mins+' min'} · ${hhmm(x.valid)}</div>
       <div class="v">${x.rain===true?`🌧 ${x.intensityMm} mm/h`:x.rain===false?'— 无雨':'⚠️ 失败'}</div>
     </div>`).join('');
 
