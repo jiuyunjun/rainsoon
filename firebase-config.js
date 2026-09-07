@@ -1,10 +1,8 @@
 // Firebase Web SDK 配置（雨临 · Rainsoon）
 //
 // 这些值不是密钥，本来就会出现在浏览器源码里。
-// measurementId 需要在 Firebase Console 打开 Analytics 后才会生成：
-//   Console → 项目设置 → 集成 → Google Analytics → 启用
-//   然后在「项目设置 → 常规 → 你的应用」里复制 measurementId 填到下面。
-// 留空时页面照常工作，只是不上报统计。
+// measurementId 由 Firebase Console 启用 Google Analytics 后生成。
+// 若清空它，analytics.js 会跳过初始化，页面照常工作，只是不上报统计。
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBpcljsmuPd_mWbBFVdlHNFIAqnIXkKMFg",
   authDomain: "rainsoon.firebaseapp.com",
@@ -12,7 +10,7 @@ window.FIREBASE_CONFIG = {
   storageBucket: "rainsoon.firebasestorage.app",
   messagingSenderId: "777400320052",
   appId: "1:777400320052:web:a383b220b70b935b8bca61",
-  measurementId: ""
+  measurementId: "G-0QD50L4QHD"
 };
 
 // 埋点缓冲：analytics.js 是 ES module，加载晚于页面主脚本。
