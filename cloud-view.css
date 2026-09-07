@@ -7,6 +7,7 @@
 .cloud-controls label{margin:0;flex-shrink:0;font-size:12px}
 .cloud-controls input{width:auto;min-width:0;flex:1;min-height:44px;padding:0;background:transparent;border:0;box-shadow:none;accent-color:#a9c8e0;cursor:pointer}
 .cloud-controls output{min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
+.cloud-depth-key{color:#a0b3c5;font-size:11px;margin:0 0 4px}
 #gsiBasemap{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;background:#101e2b;isolation:isolate}
 /* GSI blank tiles become quiet light boundaries over a dark, uniform ground. */
 .gsi-grid{display:grid;width:100%;height:100%;filter:grayscale(1) invert(1) brightness(.75);mix-blend-mode:screen;opacity:.38}

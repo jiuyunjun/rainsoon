@@ -52,7 +52,7 @@ function renderCloudTexture(source, canvas){
   const data=sc.getImageData(0,0,256,256);
   for(let i=0;i<data.data.length;i+=4){
     const p=data.data, rain=p[i+3]>20 && !(p[i]>245&&p[i+1]>245&&p[i+2]>245);
-    const density=rain ? .42+.58*Math.log1p(inferRainMm(p[i],p[i+1],p[i+2]).mm)/Math.log(91) : 0;
+    const density=rain ? .08+.92*Math.log1p(inferRainMm(p[i],p[i+1],p[i+2]).mm)/Math.log(91) : 0;
     p[i]=p[i+1]=p[i+2]=255; p[i+3]=Math.round(density*255);
   }
   sc.putImageData(data,0,0);
@@ -66,29 +66,56 @@ function renderCloudTexture(source, canvas){
   ctx.drawImage(small,inset,inset,span,span);
   const coverage=ctx.getImageData(0,0,size,size).data;
   const heights=new Float32Array(size*size);
+  // Overlapping rounded lobes, not high-frequency surface noise. Fixed seeds keep
+  // the relief stable when switching forecast frames or reopening the same tile.
+  const lobes=new Float32Array(extent*extent);
   const hash=(x,y)=>{let n=Math.imul(x,374761393)+Math.imul(y,668265263); n=Math.imul(n^(n>>>13),1274126177); return ((n^(n>>>16))>>>0)/4294967295;};
-  const noise=(x,y)=>{
-    const ix=Math.floor(x),iy=Math.floor(y); let fx=x-ix,fy=y-iy;
-    fx=fx*fx*(3-2*fx); fy=fy*fy*(3-2*fy);
-    const a=hash(ix,iy),b=hash(ix+1,iy),c=hash(ix,iy+1),d=hash(ix+1,iy+1);
-    return (a+(b-a)*fx)*(1-fy)+(c+(d-c)*fx)*fy;
-  };
+  for(const [spacing,amplitude] of [[23,1],[11,.24],[5,.035]]){
+    for(let gy=-1;gy<extent/spacing+1;gy++) for(let gx=-1;gx<extent/spacing+1;gx++){
+      const cx=(gx+hash(gx+91,gy))*spacing,cy=(gy+hash(gx,gy+73))*spacing;
+      const radius=spacing*(.65+hash(gx+11,gy+19)*.55);
+      const weight=amplitude*(.65+hash(gx+39,gy+41)*.7);
+      for(let y=Math.max(0,Math.floor(cy-radius));y<Math.min(extent,cy+radius);y++){
+        for(let x=Math.max(0,Math.floor(cx-radius));x<Math.min(extent,cx+radius);x++){
+          const r2=((x-cx)**2+(y-cy)**2)/(radius*radius);
+          if(r2<1) lobes[y*extent+x]+=weight*(1-r2)**2;
+        }
+      }
+    }
+  }
   for(let y=0;y<size;y++) for(let x=0;x<size;x++){
-    const i=y*size+x, density=coverage[i*4+3]/255;
+    const i=y*size+x,density=coverage[i*4+3]/255;
     if(density<.004) continue;
-    const u=x/size*extent,v=y/size*extent;
-    const billow=.76*noise(u*.065,v*.065)+.19*noise(u*.16+43,v*.16)+.04*noise(u*.4,v*.4+71)+.01*noise(u*.9,v*.9);
-    heights[i]=Math.pow(density,.65)*(.35+billow*.95);
+    const u=x/size*(extent-1),v=y/size*(extent-1),ix=Math.floor(u),iy=Math.floor(v),fx=u-ix,fy=v-iy;
+    const j=iy*extent+ix;
+    const billow=(lobes[j]*(1-fx)+lobes[j+1]*fx)*(1-fy)+(lobes[j+extent]*(1-fx)+lobes[j+extent+1]*fx)*fy;
+    // Height is an illustrative rain-intensity encoding in source-pixel units,
+    // not a measurement of atmospheric cloud height. No geographic displacement.
+    heights[i]=22*Math.pow(density,1.35)*(.38+billow*.85);
   }
   canvas.width=canvas.height=size;
   const out=canvas.getContext('2d'), pixels=out.createImageData(size,size);
-  for(let y=1;y<size-1;y++) for(let x=1;x<size-1;x++){
+  const step=2,derivative=2*step*extent/size;
+  for(let y=step;y<size-step;y++) for(let x=step;x<size-step;x++){
     const i=y*size+x,h=heights[i]; if(!h) continue;
-    const slope=(heights[i-1]-heights[i+1])*.65+(heights[i-size]-heights[i+size])*.85;
-    const light=Math.max(0,Math.min(1,.24+slope*12+h*.65));
+    const density=coverage[i*4+3]/255;
+    const nx=(heights[i-step]-heights[i+step])/derivative;
+    const ny=(heights[i-step*size]-heights[i+step*size])/derivative;
+    const diffuse=Math.max(0,(-.48*nx-.56*ny+.68)/Math.hypot(nx,ny,1));
+    // Short soft-shadow march towards the upper-left light source. Tall lobes
+    // shade adjacent valleys, giving thick rain cores a readable sense of depth.
+    let shadow=0;
+    for(let k=1;k<=5;k++){
+      const sx=x-k*9,sy=y-k*11;
+      if(sx<0||sy<0) break;
+      shadow=Math.max(shadow,Math.min(1,Math.max(0,(heights[sy*size+sx]-h-k*2.7)/5)));
+    }
+    const light=Math.max(0,Math.min(1,.32+diffuse*.66-shadow*.12));
     const k=i*4;
-    pixels.data[k]=105+light*145; pixels.data[k+1]=127+light*123; pixels.data[k+2]=146+light*107;
-    pixels.data[k+3]=Math.min(248,coverage[k+3]*2.8)*Math.min(1,h*8);
+    pixels.data[k]=65+light*184; pixels.data[k+1]=85+light*167; pixels.data[k+2]=110+light*145;
+    // Optical depth: weak cells stay transparent; stronger cells gain an opaque
+    // body, rather than all palette buckets saturating to the same flat white.
+    pixels.data[k+3]=255*(1-Math.exp(-density*3.8))*Math.min(1,h*1.8);
   }
   out.putImageData(pixels,0,0);
 }

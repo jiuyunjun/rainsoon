@@ -101,7 +101,8 @@ window.I18N = {
 
     diag_title: "看不见的细节",
 
-    cloud_opacity: "云层浓度",
+    cloud_opacity: "云层可见度",
+    cloud_depth_key: "降水由弱到强：薄雾 → 隆起云团",
     map_credit: "底图：国土地理院（色调调整）",
     map_loading: "底图加载中…",
     map_partial: "部分底图暂不可用",
@@ -111,7 +112,7 @@ window.I18N = {
     cloud_rendered: "查看立体云层",
     cloud_north: "↑ 北 · 经度 / 纬度",
     cloud_fallback: "云层渲染不可用，显示原图",
-    cloud_note: "云层为降水分布的艺术化呈现，非卫星实拍；细节不代表更高的观测精度。",
+    cloud_note: "云越厚表示降水越强。厚度与光影为视觉表达，不代表实际云高，也非卫星实拍。",
     modal_title_default: "这一刻的云",
     modal_title: "{time} 的云",
     modal_close: "关闭",
@@ -230,7 +231,8 @@ window.I18N = {
 
     diag_title: "観測の舞台裏",
 
-    cloud_opacity: "雲の濃さ",
+    cloud_opacity: "雲の表示濃度",
+    cloud_depth_key: "雨が強いほど：薄い霧 → 厚く盛り上がる雲",
     map_credit: "地図：国土地理院（色調調整）",
     map_loading: "地図を読み込み中…",
     map_partial: "地図の一部を読み込めません",
@@ -240,7 +242,7 @@ window.I18N = {
     cloud_rendered: "立体的な雲を見る",
     cloud_north: "↑ 北 · 経度 / 緯度",
     cloud_fallback: "雲を描画できないため元画像を表示",
-    cloud_note: "降水分布をもとにした雲の表現です。衛星写真ではなく、細部は観測精度の向上を示すものではありません。",
+    cloud_note: "厚い雲ほど強い降水を表します。厚みと陰影は視覚表現で、実際の雲の高さや衛星写真ではありません。",
     modal_title_default: "ひとときの雨雲",
     modal_title: "{time} の雲",
     modal_close: "閉じる",
@@ -360,6 +362,7 @@ window.I18N = {
     diag_title: "Behind the forecast",
 
     cloud_opacity: "Cloud opacity",
+    cloud_depth_key: "Lighter → heavier rain: mist → billowing clouds",
     map_credit: "Map: GSI Japan (color adjusted)",
     map_loading: "Loading map…",
     map_partial: "Some map tiles are unavailable",
@@ -369,7 +372,7 @@ window.I18N = {
     cloud_rendered: "View cloud relief",
     cloud_north: "↑ N · Longitude / Latitude",
     cloud_fallback: "Cloud rendering unavailable; showing original",
-    cloud_note: "An artistic rendering of precipitation, not a satellite photograph. Added detail does not increase observation accuracy.",
+    cloud_note: "Thicker clouds indicate heavier rain. Depth and lighting are illustrative, not measured cloud height or satellite imagery.",
     modal_title_default: "A moment in the clouds",
     modal_title: "The clouds at {time}",
     modal_close: "Close",
