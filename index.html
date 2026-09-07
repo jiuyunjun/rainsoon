@@ -246,13 +246,49 @@
   .risk .value{font-size:12px}
 }
 
+    /* A quiet rhythm: water rings while waiting, a soft arrival for results. */
+    button,input,.t{transition:background .25s ease,border-color .25s ease,box-shadow .25s ease,transform .25s ease,opacity .25s ease}
+    button:focus-visible,input:focus-visible,.t:focus-visible{outline:2px solid #a9c8ff;outline-offset:4px}
+    button:not(:disabled):active{transform:scale(.98)}
+    button:not(:disabled):hover{box-shadow:0 4px 20px #70a5ff18}
+    button:disabled{cursor:default}
+    button.is-busy{position:relative;opacity:.8;cursor:progress}
+    button.is-busy:after{content:"";display:inline-block;width:13px;height:13px;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;position:absolute;right:18px;top:calc(50% - 7px);animation:orbit 1.4s linear infinite}
+    .lang-switch{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(3,64px);gap:0;padding:4px;margin-top:0;background:linear-gradient(145deg,#192332,#0c1118);border-color:#344254;box-shadow:inset 0 1px 0 #ffffff06,0 4px 16px #0002}
+    .lang-switch:before{content:"";position:absolute;z-index:-1;left:4px;top:4px;bottom:4px;width:64px;border-radius:999px;background:linear-gradient(145deg,#344860,#25364b);box-shadow:inset 0 1px 0 #c7deff20,0 2px 8px #0003;transform:translateX(calc(var(--lang-index,0) * 100%));transition:transform .4s cubic-bezier(.22,1,.36,1)}
+    .lang-switch button{min-height:38px;padding:8px 4px;font-size:12px;font-weight:500;letter-spacing:.04em}
+    .lang-switch button[aria-pressed="true"]{background:transparent;color:#e2edff}
+    .lang-switch button:not(:disabled):hover{box-shadow:none;color:#fff}
+    .listening{display:flex;align-items:center;gap:12px;min-height:38px;margin:10px 0;color:#a9c5e6;font-size:12px;letter-spacing:.06em;animation:arrive .5s ease both}
+    .listening[hidden]{display:none}
+    #loadingProgress{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);letter-spacing:0}
+    .ripple{position:relative;display:block;flex:0 0 28px;height:28px}
+    .ripple:before,.ripple:after{content:"";position:absolute;inset:0;border:1px solid #94b9e4;border-radius:50%;animation:ripple 2.8s ease-out infinite}
+    .ripple:after{animation-delay:-1.4s}
+    .is-loading .summary-v{animation:breathe 2.8s ease-in-out infinite}
+    .t,.long-card{animation:arrive .55s ease both}
+    .t:nth-child(3n+2),.long-card:nth-child(3n+2){animation-delay:.05s}
+    .t:nth-child(3n+3),.long-card:nth-child(3n+3){animation-delay:.1s}
+    .modal.open{animation:veil .25s ease both}
+    .modal.open .modal-card{animation:arrive .35s cubic-bezier(.22,1,.36,1) both}
+    .map-wrap.is-loading:after{content:"";position:absolute;inset:35%;border:1px solid #94b9e4;border-radius:50%;animation:ripple 2.8s ease-out infinite}
+    .map-wrap.is-loading #frameImg{opacity:0}
+    #frameImg{transition:opacity .35s ease}
+    .hero{overflow-wrap:anywhere;text-wrap:balance}
+    @keyframes orbit{to{transform:rotate(360deg)}}
+    @keyframes ripple{0%{transform:scale(.2);opacity:0}20%{opacity:.7}100%{transform:scale(1);opacity:0}}
+    @keyframes breathe{50%{opacity:.4}}
+    @keyframes arrive{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes veil{from{opacity:0}to{opacity:1}}
+    @media(max-width:640px){.lang-switch button{min-height:44px}.topbar{gap:10px;margin-bottom:10px}.hero{font-size:clamp(24px,6.5vw,30px)}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.ripple:before{opacity:.6}.ripple:after{inset:8px;opacity:.4}}
   </style>
 </head>
 <body>
 <main>
   <header class="topbar">
     <div class="brand">
-      <h1>雨临 <span class="brand-latin">RAINSOON</span></h1>
+      <h1><span data-i18n="brand_name">雨临</span> <span class="brand-latin">RAINSOON</span></h1>
       <a class="byline" href="https://lazydoglab.com" target="_blank" rel="noopener" data-i18n="byline">by lazydoglab</a>
     </div>
     <div class="lang-switch" id="langSwitch" role="group" aria-label="Language"></div>
@@ -279,7 +315,8 @@
   <div class="card">
     <span class="pill" id="locationPill" data-i18n="pill_location_unknown">此刻所在：未知</span>
     <span class="pill" id="baseTimePill" data-i18n="pill_basetime_unread">云图时刻：未读</span>
-    <div id="headline" class="hero" data-i18n="headline_idle">云还未说话</div>
+    <div class="listening" id="loadingState" role="status" hidden><span class="ripple" aria-hidden="true"></span><span id="loadingText" data-i18n="loading_clouds">静听云的回音</span><span id="loadingProgress" aria-hidden="true"></span></div>
+    <div id="headline" class="hero" aria-live="polite" data-i18n="headline_idle">云还未说话</div>
     <div id="detail" class="muted" data-i18n="detail_idle">让位置与云相遇，答案自然会来。</div>
     <div id="timeline" class="timeline"></div>
   </div>
@@ -360,10 +397,23 @@ let lastTile = null;
 let lastLongRows = null;   // 长时预报，切换语言后重绘要用
 let lastHazards = null;    // 雷 / 疾风 / 长雨带的事实，同上
 let lastFrame = null;      // 弹窗当前所示的那一帧
+let busyPhase = null;
+let activeButton = null;
+let lastBaseTime = null;
 
 const $ = id => document.getElementById(id);
 function log(msg){ $('log').textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; $('log').scrollTop = $('log').scrollHeight; }
 function setBusy(b){
+  if(b && !busyPhase) activeButton = document.activeElement?.id;
+  busyPhase = b ? 'loading_clouds' : null;
+  document.body.classList.toggle('is-loading', b);
+  $('loadingState').hidden = !b;
+  $('loadingText').textContent = t('loading_clouds');
+  if(!b) $('loadingProgress').textContent = '';
+  ['locateBtn','manualBtn','refreshBtn'].forEach(id=>{
+    $(id).classList.toggle('is-busy', b && id === activeButton);
+    $(id).setAttribute('aria-busy', String(b && id === activeButton));
+  });
   $('locateBtn').disabled=b; $('manualBtn').disabled=b; $('refreshBtn').disabled=b || !currentLocation;
 }
 function parseJmaTime(s){
@@ -629,6 +679,7 @@ function updateSummary(results,longRows=[]){
 
 async function checkRain(lat,lon){
   setBusy(true); $('log').textContent='';
+  lastLongRows = null;
   $('headline').className='hero'; $('headline').textContent=t('headline_listening');
   $('detail').textContent=t('detail_listening');
   $('timeline').innerHTML='';
@@ -642,10 +693,12 @@ async function checkRain(lat,lon){
     const frames=await getForecastFrames();
     if(!frames.length) throw new Error('没有找到 hrpns 预测帧');
     const base=parseJmaTime(frames[0].basetime);
+    lastBaseTime = base;
     $('baseTimePill').textContent=t('pill_basetime',{time:hhmm(base)});
     log(`取得 ${frames.length} 个预测时次，basetime=${frames[0].basetime}`);
 
     const results=[];
+    const totalFrames=frames.filter(f=>{const m=(parseJmaTime(f.validtime)-base)/60000;return m>=0 && m<=60;}).length;
     for(const f of frames){
       const valid=parseJmaTime(f.validtime);
       let mins=Math.round((valid-base)/60000);
@@ -662,6 +715,7 @@ async function checkRain(lat,lon){
         log(`+${mins} min : ERROR ${e.message}`);
         results.push({mins,valid,rain:null,error:e.message,url});
       }
+      $('loadingProgress').textContent = `${results.length} / ${totalFrames}`;
     }
     if(!results.length) throw new Error('JMA 返回了时次，但没有获得 0–60 分钟预测帧');
 
@@ -677,6 +731,9 @@ async function checkRain(lat,lon){
     });
     render(results);
     updateSummary(results, []);
+    busyPhase = 'loading_distance';
+    $('loadingText').textContent = t(busyPhase);
+    $('loadingProgress').textContent = '';
     const [hazards,longRows] = await Promise.all([
       loadHazards(lat,lon,tile),
       loadLongForecast(lat,lon,tile)
@@ -859,7 +916,13 @@ function openFrame(frame){
   if(!frame) return;
   lastFrame = frame;
   $('frameTitle').textContent = t('modal_title',{time:hhmm(frame.valid)});
-  $('frameImg').src = frame.url;
+  if($('frameImg').getAttribute('src') !== frame.url){
+    const wrap = $('frameImg').parentElement;
+    wrap.classList.add('is-loading');
+    $('frameImg').onload = ()=>wrap.classList.remove('is-loading');
+    $('frameImg').onerror = ()=>{wrap.classList.remove('is-loading'); $('frameImg').alt=t('modal_state_fail');};
+    $('frameImg').src = frame.url;
+  }
   const state = frame.rain===true ? t('modal_state_rain',{mm:frame.intensityMm})
               : frame.rain===false ? t('modal_state_dry')
               : t('modal_state_fail');
@@ -877,7 +940,8 @@ function openFrame(frame){
 function closeFrame(){
   $('frameModal').classList.remove('open');
   $('frameModal').setAttribute('aria-hidden','true');
-  $('frameImg').src='';
+  $('frameImg').removeAttribute('src');
+  $('frameImg').parentElement.classList.remove('is-loading');
 }
 $('closeModal').onclick=closeFrame;
 $('frameModal').addEventListener('click',e=>{ if(e.target===$('frameModal')) closeFrame(); });
@@ -889,6 +953,10 @@ $('locateBtn').onclick=()=>{
     $('headline').textContent=t('headline_no_geo'); return;
   }
   setBusy(true);
+  busyPhase = 'loading_location';
+  $('loadingText').textContent = t(busyPhase);
+  $('headline').className='hero';
+  $('detail').textContent=t('detail_idle');
   $('headline').textContent=t('headline_locating');
   navigator.geolocation.getCurrentPosition(
     p=>{
@@ -935,6 +1003,10 @@ function applyStaticI18n(){
   document.title = t('doc_title');
   const meta = $('metaDesc');
   if(meta) meta.setAttribute('content', t('doc_desc'));
+  document.querySelectorAll('meta[property="og:title"],meta[name="twitter:title"]').forEach(el=>el.content=t('doc_title'));
+  document.querySelectorAll('meta[property="og:description"],meta[name="twitter:description"]').forEach(el=>el.content=t('brand_sub'));
+  document.querySelector('meta[property="og:site_name"]').content=t('brand_name')+' Rainsoon';
+  document.querySelector('meta[property="og:locale"]').content={zh:'zh_CN',ja:'ja_JP',en:'en_US'}[window.LANG];
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-alt]').forEach(el=>{ el.alt = t(el.dataset.i18nAlt); });
   document.querySelectorAll('[data-i18n-aria]').forEach(el=>{ el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
@@ -943,7 +1015,7 @@ function applyStaticI18n(){
 function buildLangSwitch(){
   const box = $('langSwitch');
   box.innerHTML = Object.keys(window.I18N).map(code=>
-    `<button type="button" data-lang="${code}" title="${escapeHtml(window.I18N[code].lang_name)}">${escapeHtml(window.I18N[code].lang_short)}</button>`
+    `<button type="button" data-lang="${code}" lang="${code}" aria-label="${escapeHtml(window.I18N[code].lang_name)}" title="${escapeHtml(window.I18N[code].lang_name)}">${escapeHtml(window.I18N[code].lang_name)}</button>`
   ).join('');
   box.querySelectorAll('button').forEach(b=>{
     b.onclick = ()=>setLang(b.dataset.lang);
@@ -951,6 +1023,7 @@ function buildLangSwitch(){
 }
 
 function markActiveLang(){
+  $('langSwitch').style.setProperty('--lang-index', Object.keys(window.I18N).indexOf(window.LANG));
   $('langSwitch').querySelectorAll('button').forEach(b=>{
     b.setAttribute('aria-pressed', String(b.dataset.lang === window.LANG));
   });
@@ -964,12 +1037,24 @@ function setLang(code){
   applyStaticI18n();
 
   // 已经读过云的话，把动态部分按新语言重说一遍。
-  if(lastResults.length){
+  if(lastResults.length && (!busyPhase || busyPhase === 'loading_distance')){
     render(lastResults, lastLongRows);
     updateSummary(lastResults, lastLongRows || []);
     if(lastLongRows) renderLongForecastRows(lastLongRows);
     if(lastHazards) renderHazards(lastHazards);
     if($('frameModal').classList.contains('open') && lastFrame) openFrame(lastFrame);
+  }
+  if(lastBaseTime) $('baseTimePill').textContent=t('pill_basetime',{time:hhmm(lastBaseTime)});
+  if(busyPhase && busyPhase !== 'loading_location' && !lastLongRows) $('longForecast').innerHTML=`<div class="muted">${escapeHtml(t('long_pending'))}</div>`;
+  if(currentLocation) $('locationPill').textContent = currentLocation.accuracy == null ? t('pill_location_manual') : t('pill_location_gps',{m:Math.round(currentLocation.accuracy)});
+  if(busyPhase){
+    $('loadingText').textContent=t(busyPhase);
+    if(busyPhase !== 'loading_distance'){
+      $('headline').className='hero';
+      $('headline').textContent=t(busyPhase==='loading_location'?'headline_locating':'headline_listening');
+      $('detail').textContent=t(busyPhase==='loading_location'?'detail_idle':'detail_listening');
+      $('timeline').innerHTML='';
+    }
   }
   window.track('lang_switch', { lang: code });
 }
