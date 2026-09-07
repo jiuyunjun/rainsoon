@@ -50,6 +50,10 @@
     .small{font-size:12px;line-height:1.6;color:var(--muted)}
     .status{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#b9c4d1;max-height:180px;overflow:auto}
 .diag-card summary{list-style:none}.diag-card summary::-webkit-details-marker{display:none}.diag-card summary:after{content:"＋";float:right;color:var(--muted)}.diag-card[open] summary:after{content:"－"}
+    h1{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px}
+    .brand-latin{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.14em}
+    .byline{margin-left:auto;font-size:12px;font-weight:500;color:var(--muted);text-decoration:none;letter-spacing:.04em;white-space:nowrap}
+    .byline:hover{color:var(--accent)}
     .pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#202936;color:#c8d2de;font-size:12px;margin-right:6px}
     .t{cursor:pointer;transition:transform .12s ease,border-color .12s ease}
     .t:hover{transform:translateY(-1px);border-color:#53627a}
@@ -236,7 +240,7 @@
 </head>
 <body>
 <main>
-  <h1>雨临 <span style="font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.14em;margin-left:6px">RAINSOON</span></h1>
+  <h1>雨临 <span class="brand-latin">RAINSOON</span><a class="byline" href="https://lazydoglab.com" target="_blank" rel="noopener">by lazydoglab</a></h1>
   <div class="sub">看一眼云的来路，知一场雨离你还有多远。</div>
 
   <div class="card">
@@ -630,6 +634,8 @@ async function checkRain(lat,lon){
       loadLongForecast(lat,lon,tile)
     ]);
     updateSummary(results,longRows);
+    // 远处的云到了，雨歇之时才可能落到一小时之外，重说一遍。
+    renderHeadline(results,longRows);
   }catch(e){
     console.error(e);
     $('headline').className='hero bad';
@@ -639,21 +645,48 @@ async function checkRain(lat,lon){
     window.track('nowcast_error', { message: String(e.message).slice(0,100) });
   }finally{ setBusy(false); }
 }
-function render(results){
+function hhmm(d){ return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+
+// 雨已在下时，找雨歇之时。
+// 一小时内用五分钟一帧的临近预报，精确；越界则退到逐小时的粗略预报。
+function findRainEnd(valid, longRows){
+  const nowIdx = valid.findIndex(x=>x.mins===0);
+  for(let i=nowIdx+1;i<valid.length;i++){
+    if((valid[i].intensityMm||0) < RAIN_THRESHOLD) return {at:valid[i].valid, mins:valid[i].mins, precise:true};
+  }
+  const rows=(longRows||[]).filter(Boolean);
+  if(!rows.length) return null;                       // 远处云图还没到，先不说满话
+  const dry=rows.find(r=>(r.mm||0) < RAIN_THRESHOLD);
+  return dry ? {at:dry.valid, precise:false} : {at:null, precise:false};
+}
+
+function renderHeadline(results, longRows){
   const valid=results.filter(x=>x.rain!==null);
-  const rainingNow=valid.find(x=>x.mins===0)?.rain;
+  const nowFrame=valid.find(x=>x.mins===0);
+  const nowMm=nowFrame?.intensityMm || 0;
   const first=valid.find(x=>x.mins>0 && (x.intensityMm||0) >= RAIN_THRESHOLD);
   const anyErrors=results.some(x=>x.rain===null);
 
-  if((valid.find(x=>x.mins===0)?.intensityMm || 0) >= RAIN_THRESHOLD){
+  if(nowMm >= RAIN_THRESHOLD){
+    const end=findRainEnd(valid, longRows);
     $('headline').className='hero bad';
-    $('headline').textContent='雨已在身边';
-    const nowMm = valid.find(x=>x.mins===0)?.intensityMm || 0;
-    $('detail').textContent= first ? `此刻雨势约 ${nowMm} mm/h，雨意还会延续。` : `此刻雨势约 ${nowMm} mm/h。`;
+    if(end && end.precise){
+      $('headline').textContent=`雨正落着，约 ${end.mins} 分钟后歇`;
+      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h，${hhmm(end.at)} 前后，云会松手。`;
+    }else if(end && end.at){
+      $('headline').textContent='雨落着，一时未歇';
+      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h。一小时内不见停歇，远处云图约在 ${hhmm(end.at)} 前后转晴——远处看得粗，只作参照。`;
+    }else if(end){
+      $('headline').textContent='雨落着，一时未歇';
+      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h。往后六小时的云图里，还望不见雨歇。`;
+    }else{
+      $('headline').textContent='雨已在身边';
+      $('detail').textContent=`此刻雨势约 ${nowMm} mm/h，雨歇之时，还在望云。`;
+    }
   }else if(first){
     $('headline').className='hero warn';
     $('headline').textContent=`雨，约 ${first.mins} 分钟后到`;
-    $('detail').textContent=`大约在 ${first.valid.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}，第一阵雨意会落到这里。`;
+    $('detail').textContent=`大约在 ${hhmm(first.valid)}，第一阵雨意会落到这里。`;
   }else if(valid.length){
     $('headline').className='hero ok';
     $('headline').textContent='一小时内，雨还不会来';
@@ -664,6 +697,10 @@ function render(results){
     $('detail').textContent='这一刻没能听清云的回答。';
   }
   if(anyErrors) $('detail').textContent += ' 有几段云图暂时失语。';
+}
+
+function render(results, longRows){
+  renderHeadline(results, longRows);
 
   $('timeline').innerHTML=results
     .filter(x=>x.mins>=0 && x.mins<=60)
