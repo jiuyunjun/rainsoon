@@ -762,13 +762,14 @@ async function checkRain(lat,lon){
       try{
         const bmp=await loadBitmap(url);
         const s=sampleRain(bmp,tile.px,tile.py);
-        results.push({mins,valid,rain:s.rain,available:s.available,url,intensityMm:s.intensityMm,maxMm:s.maxMm,bucket:s.bucket});
+        // 保留 basetime/validtime：云图要按同一时次去取相邻瓦片拼居中视图。
+        results.push({mins,valid,rain:s.rain,available:s.available,url,basetime:f.basetime,validtime:f.validtime,intensityMm:s.intensityMm,maxMm:s.maxMm,bucket:s.bucket});
         log(`+${mins} min : ${s.intensityMm} mm/h est${s.bucket?` (${s.bucket})`:''}${bmp?'':' (tile 404)'}`);
         bmp?.close();
       }catch(e){
         // Cross-origin errors are actionable and should be visible.
         log(`+${mins} min : ERROR ${e.message}`);
-        results.push({mins,valid,rain:null,error:e.message,url});
+        results.push({mins,valid,rain:null,error:e.message,url,basetime:f.basetime,validtime:f.validtime});
       }
       $('loadingProgress').textContent = `${results.length} / ${totalFrames}`;
     }
@@ -968,6 +969,25 @@ function renderRainChart(results){
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 
+// 取窗口覆盖到的那几片瓦片（居中时通常是 2×2 四片），拼成一张以你为
+// 中心的图。缺片（404）就留空，不影响其余部分；测量仍只用采样那一片。
+async function composeCenteredFrame(frame){
+  const win=tileWindow(lastTile);
+  const canvas=document.createElement('canvas');
+  canvas.width=canvas.height=win.span;
+  const ctx=canvas.getContext('2d');
+  const drawn=await Promise.all(windowTiles(win,ZOOM).map(async cell=>{
+    const url=`${JMA}/${frame.basetime}/none/${frame.validtime}/surf/hrpns/${ZOOM}/${cell.x}/${cell.y}.png`;
+    try{
+      const bmp=await loadBitmap(url);
+      if(!bmp) return false;
+      ctx.drawImage(bmp,cell.left,cell.top); bmp.close();
+      return true;
+    }catch(e){ log(`cloud tile ${cell.x}/${cell.y}: ${e.message}`); return false; }
+  }));
+  return drawn.some(Boolean) ? canvas : null;
+}
+
 let frameReturnFocus=null;
 function openFrame(frame){
   if(!frame) return;
@@ -975,20 +995,33 @@ function openFrame(frame){
   if(!wasOpen) frameReturnFocus=document.activeElement;
   lastFrame = frame;
   $('frameTitle').textContent = t('modal_title',{time:hhmm(frame.valid)});
-  if($('frameImg').getAttribute('src') !== frame.url){
+  // 拼好的图是 data URL，认不出是哪一帧，所以用 dataset 记住来源时次。
+  if($('frameImg').dataset.frameUrl !== frame.url){
     const wrap = $('frameImg').parentElement;
+    $('frameImg').dataset.frameUrl = frame.url;
     wrap.classList.add('is-loading');
     $('cloudCanvas').getContext('2d').clearRect(0,0,$('cloudCanvas').width,$('cloudCanvas').height);
     $('cloudMist').hidden=true;
     setCloudStatus('loading_clouds');
+    const fail = ()=>{
+      if($('frameImg').dataset.frameUrl !== frame.url) return;
+      wrap.classList.remove('is-loading'); $('frameImg').alt=t('modal_state_fail'); setCloudStatus('modal_state_fail');
+    };
     $('frameImg').onload = ()=>{
       wrap.classList.remove('is-loading');
       try{ renderCloudTexture($('frameImg'), $('cloudCanvas')); renderCloudMist($('cloudCanvas')); setCloudStatus('cloud_north'); }
       catch(e){ wrap.classList.add('raw-view'); setCloudStatus('cloud_fallback'); }
       syncCloudToggle();
     };
-    $('frameImg').onerror = ()=>{wrap.classList.remove('is-loading'); $('frameImg').alt=t('modal_state_fail'); setCloudStatus('modal_state_fail');};
-    $('frameImg').src = frame.url;
+    $('frameImg').onerror = fail;
+    (lastTile && frame.basetime ? composeCenteredFrame(frame) : Promise.resolve(null))
+      .then(canvas=>{
+        // 拼图期间可能已经翻到别的时次，那就别覆盖后来的画面。
+        if($('frameImg').dataset.frameUrl !== frame.url) return;
+        if(canvas) $('frameImg').src = canvas.toDataURL();
+        else $('frameImg').src = frame.url;
+      })
+      .catch(e=>{ log(`cloud compose: ${e.message}`); fail(); });
   }
   const state = frame.rain===true ? t('modal_state_rain',{mm:frame.intensityMm})
               : frame.rain===false ? t('modal_state_dry')
@@ -1013,17 +1046,13 @@ function openFrame(frame){
   if(!wasOpen) $('closeModal').focus({preventScroll:true});
   window.track('frame_view', { minutes_ahead: frame.mins, raining: frame.rain === true });
 }
-// 瓦片是 256×256，你在其中的位置是 (px,py)，几乎从不落在正中。
-// 标记若钉死在 50%/50%，指的是瓦片中心——在 z=10 下最远能偏出十几公里，
-// 于是「准星压在雨云上，却报无雨」。这里让标记落到真正被采样的像素上，
-// 虚线框则是 sampleRain 实际取的 (2·SAMPLE_RADIUS+1)² 窗口。
+// 画面已经按你所在的像素裁切居中，所以标记就钉在正中央——它指的正是
+// sampleRain 真正取值的那个像素。虚线框是实际采样的 (2·SAMPLE_RADIUS+1)² 窗口。
 function positionMarker(){
   const m = $('marker');
   if(!m) return;
-  const px = lastTile ? lastTile.px + 0.5 : 128;
-  const py = lastTile ? lastTile.py + 0.5 : 128;
-  m.style.left = (px / 256 * 100) + '%';
-  m.style.top  = (py / 256 * 100) + '%';
+  m.style.left = '50%';
+  m.style.top  = '50%';
   const side = ((SAMPLE_RADIUS * 2 + 1) / 256 * $('cloudMap').clientWidth) + 'px';
   const box = m.querySelector('.sample-box');
   if(box){ box.style.width = side; box.style.height = side; }
@@ -1045,6 +1074,7 @@ function closeFrame(){
   $('frameImg').onload = null;
   $('frameImg').onerror = null;
   $('frameImg').removeAttribute('src');
+  delete $('frameImg').dataset.frameUrl;
   $('frameImg').parentElement.classList.remove('is-loading');
 }
 $('closeModal').onclick=closeFrame;

@@ -1,19 +1,56 @@
+// 你在瓦片里的位置几乎从不在正中：z=10 一片瓦片约二十公里，画面里大半
+// 是别处的天气。改为取「以你为中心、边长仍是一片瓦片」的窗口——它最多跨
+// 2×2 片，拼起来再按偏移裁掉多余的部分。factor 是取子瓦片时的放大倍数，
+// 窗口地面范围不变，只是用更细的一层瓦片来铺，此时可能跨到 3×3 片。
+function tileWindow(tile, factor=1){
+  const span=256*factor;
+  const originX=(tile.x*256+tile.px+0.5)*factor-span/2;
+  const originY=(tile.y*256+tile.py+0.5)*factor-span/2;
+  const x0=Math.floor(originX/256), y0=Math.floor(originY/256);
+  return {
+    span, originX, originY, x0, y0,
+    cols:Math.ceil((originX+span)/256)-x0,
+    rows:Math.ceil((originY+span)/256)-y0,
+    offsetX:originX-x0*256, offsetY:originY-y0*256
+  };
+}
+// 窗口覆盖到的每一片瓦片，连同它在窗口坐标系里的落点。
+function windowTiles(win, zoom){
+  const n=2**zoom, cells=[];
+  for(let row=0;row<win.rows;row++) for(let col=0;col<win.cols;col++){
+    cells.push({
+      x:((win.x0+col)%n+n)%n, y:win.y0+row, col, row,
+      left:col*256-win.offsetX, top:row*256-win.offsetY
+    });
+  }
+  return cells;
+}
+
 // Both GSI and JMA use XYZ Web Mercator tiles. Child tiles cover exactly the
 // same bounds, while their boundary lines stay crisp on larger displays.
 function updateGSIBasemap(tile, zoom){
   if(!tile) return;
   const layer=document.getElementById('gsiBasemap');
   const factor=document.getElementById('cloudMap').clientWidth>=480?2:1;
-  const z=zoom+(factor===2?1:0), key=`${z}/${tile.x}/${tile.y}/${factor}`;
+  const z=zoom+(factor===2?1:0);
+  const win=tileWindow(tile,factor);
+  const key=`${z}/${win.x0}/${win.y0}/${win.cols}x${win.rows}/${factor}`;
   if(layer.dataset.key===key) return;
   layer.dataset.key=key;
   const grid=document.createElement('div'); grid.className='gsi-grid';
-  grid.style.gridTemplateColumns=`repeat(${factor},1fr)`;
-  grid.style.gridTemplateRows=`repeat(${factor},1fr)`;
+  grid.style.gridTemplateColumns=`repeat(${win.cols},1fr)`;
+  grid.style.gridTemplateRows=`repeat(${win.rows},1fr)`;
+  // 底图必须和降水图落在同一片地面上：网格铺满整块瓦片，再整体左上平移
+  // 一个窗口偏移，露出的正好是居中的那一格。
+  grid.style.left=`${-win.offsetX/win.span*100}%`;
+  grid.style.top=`${-win.offsetY/win.span*100}%`;
+  grid.style.width=`${win.cols*256/win.span*100}%`;
+  grid.style.height=`${win.rows*256/win.span*100}%`;
   layer.replaceChildren(grid);
   setBasemapStatus('map_loading');
-  let pending=factor*factor, loaded=0;
-  for(let y=0;y<factor;y++) for(let x=0;x<factor;x++){
+  const cells=windowTiles(win,z);
+  let pending=cells.length, loaded=0;
+  for(const cell of cells){
     const img=new Image(); img.alt=''; img.decoding='async'; img.draggable=false;
     let settled=false;
     const finish=ok=>{
@@ -22,12 +59,12 @@ function updateGSIBasemap(tile, zoom){
       if(ok){ loaded++; img.classList.add('is-ready'); }
       pending--;
       // A coordinate or breakpoint change must never expose a stale tile/status.
-      if(!pending && grid.parentElement===layer) setBasemapStatus(loaded===factor*factor?'':loaded?'map_partial':'map_failed');
+      if(!pending && grid.parentElement===layer) setBasemapStatus(loaded===cells.length?'':loaded?'map_partial':'map_failed');
     };
     const timer=setTimeout(()=>finish(false),12000);
     img.onload=()=>finish(true); img.onerror=()=>finish(false);
     grid.append(img);
-    img.src=`https://cyberjapandata.gsi.go.jp/xyz/std/${z}/${tile.x*factor+x}/${tile.y*factor+y}.png`;
+    img.src=`https://cyberjapandata.gsi.go.jp/xyz/std/${z}/${cell.x}/${cell.y}.png`;
   }
 }
 function setBasemapStatus(key){
@@ -163,9 +200,10 @@ document.addEventListener('visibilitychange',()=>{
 
 function renderCloudAxes(tile, zoom){
   if(!tile) return;
-  const n=2**zoom;
-  const lon=f=>(tile.x+f)/n*360-180;
-  const lat=f=>Math.atan(Math.sinh(Math.PI*(1-2*(tile.y+f)/n)))*180/Math.PI;
+  const n=2**zoom, world=n*256, win=tileWindow(tile);
+  // 刻度读的是窗口的边界，不再是瓦片的边界。
+  const lon=f=>(win.originX+f*win.span)/world*360-180;
+  const lat=f=>Math.atan(Math.sinh(Math.PI*(1-2*(win.originY+f*win.span)/world)))*180/Math.PI;
   const format=(value,pos,neg)=>`${Math.abs(value).toFixed(2)}°${value<0?neg:pos}`;
   const parts=[];
   for(let i=0;i<=4;i++){
