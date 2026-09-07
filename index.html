@@ -553,20 +553,6 @@ async function getForecastFrames(){
 
   return frames;
 }
-
-function formatJmaUtc(d){
-  return [
-    d.getUTCFullYear(),
-    String(d.getUTCMonth()+1).padStart(2,'0'),
-    String(d.getUTCDate()).padStart(2,'0'),
-    String(d.getUTCHours()).padStart(2,'0'),
-    String(d.getUTCMinutes()).padStart(2,'0'),
-    String(d.getUTCSeconds()).padStart(2,'0')
-  ].join('');
-}
-function floorUtcHour(d){
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), 0, 0));
-}
 function pointInRing(lon,lat,ring){
   let inside=false;
   for(let i=0,j=ring.length-1;i<ring.length;j=i++){
@@ -671,30 +657,59 @@ async function loadHazards(lat,lon,tile){
   renderHazards(facts);
   return facts;
 }
+// 长时预报（rasrf）的 basetime 不是「当前整点」：一次发布要十来分钟才上线，
+// 而且各时效分散在不同 basetime 上。原先按整点猜 basetime，几乎每格都 404，
+// 长时预报整片是「暂无数据」。改为读官方 targetTimes.json 拿 validtime 列表；
+// 它给出的 basetime 常常是刚登记、瓦片还没上线的那一次，所以候选 basetime 里
+// 再补上文件中较新的几个整点发布，由新到旧逐个试。
+const RASRF_BASETIME_TRIES = 3;
+async function rasrfFrames(count){
+  const list=(await fetchJson(`${JMA_RASRF}/targetTimes.json`)).filter(r=>r.elements?.includes('rasrf'));
+  const now=Date.now();
+  const hourly=[...new Set(list.map(r=>r.basetime))].filter(b=>b.endsWith('0000')).sort().reverse();
+  const byValid=new Map();
+  for(const r of list){
+    if(parseJmaTime(r.validtime).getTime()<=now) continue;
+    if(!byValid.has(r.validtime)) byValid.set(r.validtime,[]);
+    byValid.get(r.validtime).push(r.basetime);
+  }
+  return [...byValid.entries()]
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .slice(0,count)
+    .map(([validtime,listed])=>({
+      validtime,
+      basetimes:[...new Set([...listed.sort().reverse(),...hourly])]
+        .filter(b=>b<validtime).slice(0,RASRF_BASETIME_TRIES)
+    }));
+}
 async function loadLongForecast(lat,lon,tile){
   const container=$('longForecast');
   container.innerHTML=`<div class="muted">${escapeHtml(t('long_pending'))}</div>`;
-  const now=new Date();
-  const base=floorUtcHour(now);
+  let frames=[];
+  try{ frames=await rasrfFrames(6); }
+  catch(e){ log(`long forecast: ${e.message}`); }
   const rows=[];
-  // Probe the latest hour and one hour back as basetime fallback.
-  const baseCandidates=[base,new Date(base.getTime()-3600000)];
-  for(let h=1;h<=6;h++){
+  // 一次发布要么整批在，要么整批没有：某个 basetime 落空过就不必再为
+  // 后面的时效重试，六格只交一次学费。
+  const missing=new Set();
+  for(const f of frames){
     let found=null;
-    for(const b of baseCandidates){
-      const v=new Date(b.getTime()+h*3600000);
-      const url=`${JMA_RASRF}/${formatJmaUtc(b)}/none/${formatJmaUtc(v)}/surf/rasrf/${ZOOM}/${tile.x}/${tile.y}.png`;
+    for(const basetime of f.basetimes){
+      if(missing.has(basetime)) continue;
+      const url=`${JMA_RASRF}/${basetime}/none/${f.validtime}/surf/rasrf/${ZOOM}/${tile.x}/${tile.y}.png`;
       try{
         const bmp=await loadBitmap(url);
         if(bmp){
           const s=sampleRain(bmp,tile.px,tile.py); bmp.close();
-          found={valid:v,mm:s.intensityMm,url};
+          found={valid:parseJmaTime(f.validtime),mm:s.intensityMm,url};
           break;
         }
+        missing.add(basetime);
       }catch(_){}
     }
     rows.push(found);
   }
+  while(rows.length<6) rows.push(null);
   renderLongForecastRows(rows);
   return rows;
 }
