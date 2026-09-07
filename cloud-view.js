@@ -120,6 +120,34 @@ function renderCloudTexture(source, canvas){
   out.putImageData(pixels,0,0);
 }
 
+// Render two low-resolution wispy veils once per frame. Only their transform and
+// opacity animate; the expensive relief and measured rain footprint stay still.
+function renderCloudMist(source){
+  const wrap=document.getElementById('cloudMist');
+  wrap.querySelectorAll('canvas').forEach((canvas,layer)=>{
+    const size=512;
+    canvas.width=canvas.height=size;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.filter='blur(3px)';
+    ctx.drawImage(source,0,0,size,size);
+    ctx.filter='none';
+    const pixels=ctx.getImageData(0,0,size,size);
+    for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+      const i=(y*size+x)*4;
+      // Broad, winding ribbons break up the veil without adding dry-area clouds.
+      const bend=Math.sin(x*.021+layer*2.4)*18+Math.sin(x*.047+y*.011)*7;
+      const ribbon=.5+.5*Math.sin((y+bend)*.075+layer*3);
+      pixels.data[i]=204;pixels.data[i+1]=220;pixels.data[i+2]=232;
+      pixels.data[i+3]*=(.08+.55*ribbon*ribbon);
+    }
+    ctx.putImageData(pixels,0,0);
+  });
+  wrap.hidden=false;
+}
+document.addEventListener('visibilitychange',()=>{
+  document.documentElement.classList.toggle('page-hidden',document.hidden);
+});
+
 function renderCloudAxes(tile, zoom){
   if(!tile) return;
   const n=2**zoom;

@@ -20,6 +20,13 @@
 .cloud-stage .map-wrap{width:100%;max-height:none;aspect-ratio:1;background:radial-gradient(ellipse at 35% 20%,#1b3040,#0c1722 70%);border:1px solid #55708680;border-radius:3px;overflow:visible;isolation:isolate;box-shadow:0 20px 40px #0005,inset 0 0 55px #06101a}
 .cloud-stage #frameImg{position:absolute;inset:0;opacity:0;pointer-events:none}
 #cloudCanvas{position:absolute;left:-6.25%;top:-6.25%;width:112.5%;height:112.5%;z-index:1;opacity:var(--cloud-opacity,.78);pointer-events:none;filter:drop-shadow(6px 12px 9px #0006);animation:cloud-arrive .9s ease both}
+#cloudMist{position:absolute;inset:0;z-index:1;opacity:var(--cloud-opacity,.78);pointer-events:none}
+.cloud-mist{position:absolute;left:-6.25%;top:-6.25%;width:112.5%;height:112.5%;transform-origin:center;animation:mist-near 14s ease-in-out infinite alternate;will-change:transform,opacity}
+.cloud-mist-far{animation-name:mist-far;animation-duration:21s;animation-delay:-9s}
+.raw-view #cloudMist,.is-loading #cloudMist{display:none}
+.page-hidden .cloud-mist,#frameModal:not(.open) .cloud-mist,.raw-view .cloud-mist,.is-loading .cloud-mist{animation-play-state:paused}
+@keyframes mist-near{0%{transform:translate(-.8%,.6%) scale(.995);opacity:.25}50%{opacity:.7}100%{transform:translate(1.5%,-1.2%) scale(1.025);opacity:.4}}
+@keyframes mist-far{0%{transform:translate(.7%,.8%) scale(1.015);opacity:.5}50%{opacity:.22}100%{transform:translate(-1.3%,-1.4%) scale(1.035);opacity:.65}}
 #cloudAxes{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2}
 .cloud-stage .marker{z-index:3;filter:drop-shadow(0 2px 4px #000)}
 .cloud-stage .dot{background:#ffd49a;width:6px;height:6px;box-shadow:0 0 0 3px #151f2dcc,0 0 16px #ffe1ac}
@@ -53,4 +60,4 @@
   #frameModal .modal-card{max-height:calc(100dvh - 16px);overscroll-behavior:contain}
   .cloud-stage{max-width:440px;margin-left:auto;margin-right:auto}
 }
-@media(prefers-reduced-motion:reduce){#cloudCanvas{animation:none}}
+@media(prefers-reduced-motion:reduce){#cloudCanvas{animation:none}.cloud-mist{animation:none;transform:none;opacity:.2;will-change:auto}}

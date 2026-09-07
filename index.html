@@ -375,6 +375,7 @@
       <div id="gsiBasemap" aria-hidden="true"></div>
       <img id="frameImg" crossorigin="anonymous" data-i18n-alt="modal_img_alt" alt="雨临 · 降水云图">
       <canvas id="cloudCanvas" aria-hidden="true"></canvas>
+      <div id="cloudMist" aria-hidden="true" hidden><canvas class="cloud-mist cloud-mist-near"></canvas><canvas class="cloud-mist cloud-mist-far"></canvas></div>
       <svg id="cloudAxes" viewBox="0 0 256 256" aria-hidden="true"></svg>
       <div id="marker" class="marker">
         <div class="sample-box"></div>
@@ -950,10 +951,11 @@ function openFrame(frame){
     const wrap = $('frameImg').parentElement;
     wrap.classList.add('is-loading');
     $('cloudCanvas').getContext('2d').clearRect(0,0,$('cloudCanvas').width,$('cloudCanvas').height);
+    $('cloudMist').hidden=true;
     setCloudStatus('loading_clouds');
     $('frameImg').onload = ()=>{
       wrap.classList.remove('is-loading');
-      try{ renderCloudTexture($('frameImg'), $('cloudCanvas')); setCloudStatus('cloud_north'); }
+      try{ renderCloudTexture($('frameImg'), $('cloudCanvas')); renderCloudMist($('cloudCanvas')); setCloudStatus('cloud_north'); }
       catch(e){ wrap.classList.add('raw-view'); setCloudStatus('cloud_fallback'); }
       syncCloudToggle();
     };
@@ -997,6 +999,7 @@ function positionMarker(){
 }
 
 function closeFrame(){
+  $('cloudMist').hidden=true;
   document.body.classList.remove('frame-open');
   $('frameModal').classList.remove('open');
   $('frameModal').setAttribute('aria-hidden','true');
