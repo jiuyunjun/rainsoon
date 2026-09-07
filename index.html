@@ -594,9 +594,13 @@ function renderHazards(f){
     return;
   }
   $('thunderRisk').textContent = !f.probed ? t('hz_unknown')
-    : f.thunderAt ? t('hz_thunder_at',{time:hhmm(f.thunderAt)}) : t('hz_thunder_none');
+    : !f.thunderAt ? t('hz_thunder_none')
+    : f.thunderAt.now ? t('hz_thunder_now')
+    : t('hz_thunder_at',{time:hhmm(f.thunderAt.at)});
   $('tornadoRisk').textContent = !f.probed ? t('hz_unknown')
-    : f.tornadoAt ? t('hz_wind_at',{time:hhmm(f.tornadoAt)}) : t('hz_wind_none');
+    : !f.tornadoAt ? t('hz_wind_none')
+    : f.tornadoAt.now ? t('hz_wind_now')
+    : t('hz_wind_at',{time:hhmm(f.tornadoAt.at)});
   $('slmcsRisk').textContent = f.band===null ? t('hz_unknown')
     : f.band ? t('hz_band_hit') : t('hz_band_none');
 }
@@ -628,6 +632,26 @@ async function loadRainBand(lat,lon,frames){
   return data ? data.features.some(f=>pointInGeometry(lon,lat,f.geometry)) : null;
 }
 
+// N3 把两类帧混在一张表里：basetime!==validtime 的预报帧（未来 +10..+60min，
+// 共 6 条），和 basetime===validtime 的观测帧（每 10 分钟一条，一路排到过去）。
+// 原先按 validtime 倒序 slice(0,8)，取到的是 6 条未来 + 2 条已经发生的；再升序
+// 排列，最老的那条反而排到队首，而循环命中即 break——于是「远雷」报的永远是
+// 十几分钟前的历史。只保留 validtime >= 最新 basetime 的帧：既剔掉了过去，
+// 又留下 validtime===basetime 的那条实况（它就是发布时刻的「此刻」）。
+async function firstHazardHit(latest, element, hzTile){
+  const all=latest.filter(x=>x.elements?.includes(element));
+  if(!all.length) return null;
+  const base=all.map(x=>x.basetime).sort().at(-1);
+  const frames=all.filter(x=>x.validtime>=base).sort((a,b)=>a.validtime.localeCompare(b.validtime));
+  for(const f of frames){
+    const s=await sampleLayerTile(f.basetime,f.validtime,element,hzTile);
+    // 命中实况帧记 now：气象厅发布本身滞后十来分钟，说成「将在 03:20 靠近」
+    // 会像在预告一件已经发生的事，这一档该讲「此刻就在附近」。
+    if(s.available && s.active) return {at:parseJmaTime(f.validtime), now:f.validtime===f.basetime};
+  }
+  return null;
+}
+
 async function loadHazards(lat,lon,tile){
   const facts={probed:false, thunderAt:null, tornadoAt:null, band:null};
   // 雷/龙卷图层不发布到 z=10，得按 HAZARD_ZOOM 重新算一次瓦片与像素。
@@ -635,18 +659,10 @@ async function loadHazards(lat,lon,tile){
   try{
     const n3=await fetchJson(`${JMA}/targetTimes_N3.json`);
     const latest=[...n3].sort((a,b)=>b.validtime.localeCompare(a.validtime));
-    const thFrames=latest.filter(x=>x.elements?.includes('thns')).slice(0,8).sort((a,b)=>a.validtime.localeCompare(b.validtime));
-    const trFrames=latest.filter(x=>x.elements?.includes('trns')).slice(0,8).sort((a,b)=>a.validtime.localeCompare(b.validtime));
 
     facts.probed=true;
-    for(const f of thFrames){
-      const s=await sampleLayerTile(f.basetime,f.validtime,'thns',hzTile);
-      if(s.available && s.active){facts.thunderAt=parseJmaTime(f.validtime);break;}
-    }
-    for(const f of trFrames){
-      const s=await sampleLayerTile(f.basetime,f.validtime,'trns',hzTile);
-      if(s.available && s.active){facts.tornadoAt=parseJmaTime(f.validtime);break;}
-    }
+    facts.thunderAt=await firstHazardHit(latest,'thns',hzTile);
+    facts.tornadoAt=await firstHazardHit(latest,'trns',hzTile);
 
     facts.band=await loadRainBand(lat,lon,latest);
 
