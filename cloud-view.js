@@ -1,3 +1,44 @@
+// Both GSI and JMA use XYZ Web Mercator tiles. Child tiles cover exactly the
+// same bounds, while their extra labels remain legible on larger displays.
+function updateGSIBasemap(tile, zoom){
+  if(!tile) return;
+  const layer=document.getElementById('gsiBasemap');
+  const factor=document.getElementById('cloudMap').clientWidth>=480?2:1;
+  const z=zoom+(factor===2?1:0), key=`${z}/${tile.x}/${tile.y}/${factor}`;
+  if(layer.dataset.key===key) return;
+  layer.dataset.key=key;
+  const grid=document.createElement('div'); grid.className='gsi-grid';
+  grid.style.gridTemplateColumns=`repeat(${factor},1fr)`;
+  grid.style.gridTemplateRows=`repeat(${factor},1fr)`;
+  layer.replaceChildren(grid);
+  setBasemapStatus('map_loading');
+  let pending=factor*factor, loaded=0;
+  for(let y=0;y<factor;y++) for(let x=0;x<factor;x++){
+    const img=new Image(); img.alt=''; img.decoding='async'; img.draggable=false;
+    let settled=false;
+    const finish=ok=>{
+      if(settled) return;
+      settled=true; clearTimeout(timer); img.onload=img.onerror=null;
+      if(ok){ loaded++; img.classList.add('is-ready'); }
+      pending--;
+      // A coordinate or breakpoint change must never expose a stale tile/status.
+      if(!pending && grid.parentElement===layer) setBasemapStatus(loaded===factor*factor?'':loaded?'map_partial':'map_failed');
+    };
+    const timer=setTimeout(()=>finish(false),12000);
+    img.onload=()=>finish(true); img.onerror=()=>finish(false);
+    grid.append(img);
+    img.src=`https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${tile.x*factor+x}/${tile.y*factor+y}.png`;
+  }
+}
+function setBasemapStatus(key){
+  document.getElementById('basemapStatus').dataset.key=key;
+  syncBasemapStatus();
+}
+function syncBasemapStatus(){
+  const status=document.getElementById('basemapStatus');
+  status.textContent=status.dataset.key?t(status.dataset.key):'';
+}
+
 /* Display-only relief: the original precipitation pixels remain the source for all measurements. */
 function renderCloudTexture(source, canvas){
   const size=1024, pad=16, extent=288;
@@ -65,7 +106,9 @@ function renderCloudAxes(tile, zoom){
     parts.push(`<path d="M ${p} 256 v 4 M 0 ${p} h -4" stroke="#93afc3" fill="none"/>`);
     if(i%2===0) parts.push(`<text x="${p}" y="269" text-anchor="middle">${format(lon(f),'E','W')}</text><text x="-7" y="${p+2}" text-anchor="end">${format(lat(f),'N','S')}</text>`);
   }
-  document.getElementById('cloudAxes').innerHTML=`<g fill="#a4bdcf" font-family="system-ui,sans-serif" font-size="6.4">${parts.join('')}</g>`;
+  const mapWidth=document.getElementById('cloudMap').clientWidth;
+  const fontSize=Math.max(6.4,10*256/Math.max(1,mapWidth));
+  document.getElementById('cloudAxes').innerHTML=`<g fill="#a4bdcf" font-family="system-ui,sans-serif" font-size="${fontSize}">${parts.join('')}</g>`;
   // Ground distance at the tile's centre latitude; scale follows responsive map width.
   const km=40075.016686*Math.cos(lat(.5)*Math.PI/180)/n;
   const target=km/4, exponent=10**Math.floor(Math.log10(target));

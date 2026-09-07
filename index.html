@@ -368,8 +368,10 @@
       <button id="closeModal" class="close-btn" data-i18n="modal_close">关闭</button>
     </div>
     <div class="cloud-toolbar"><span data-i18n="cloud_heading">降水云境</span><button id="cloudToggle" type="button" aria-pressed="false" data-i18n="cloud_raw">查看原始降水图</button></div>
+    <div class="cloud-controls"><label for="cloudOpacity" data-i18n="cloud_opacity">云层浓度</label><input id="cloudOpacity" type="range" min="0" max="100" value="78"><output id="cloudOpacityValue" for="cloudOpacity">78%</output></div>
     <div class="cloud-stage">
     <div class="map-wrap" id="cloudMap">
+      <div id="gsiBasemap" aria-hidden="true"></div>
       <img id="frameImg" crossorigin="anonymous" data-i18n-alt="modal_img_alt" alt="雨临 · 降水云图">
       <canvas id="cloudCanvas" aria-hidden="true"></canvas>
       <svg id="cloudAxes" viewBox="0 0 256 256" aria-hidden="true"></svg>
@@ -381,6 +383,7 @@
     </div>
     </div>
     <div class="cloud-footer"><span id="cloudScale"></span><span id="cloudStatus" role="status"></span></div>
+    <div class="map-attribution"><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer" data-i18n="map_credit">底图：国土地理院</a><span id="basemapStatus" role="status"></span></div>
     <div class="small cloud-note" data-i18n="cloud_note">云层为降水分布的艺术化呈现，非卫星实拍；细节不代表更高的观测精度。</div>
     <div id="frameMeta" class="frame-meta"></div>
   </div>
@@ -969,8 +972,10 @@ function openFrame(frame){
   positionMarker();
   syncCloudToggle();
   $('frameModal').classList.add('open');
+  document.body.classList.add('frame-open');
   positionMarker();
   renderCloudAxes(lastTile, ZOOM);
+  updateGSIBasemap(lastTile, ZOOM);
   $('frameModal').setAttribute('aria-hidden','false');
   window.track('frame_view', { minutes_ahead: frame.mins, raining: frame.rain === true });
 }
@@ -991,6 +996,7 @@ function positionMarker(){
 }
 
 function closeFrame(){
+  document.body.classList.remove('frame-open');
   $('frameModal').classList.remove('open');
   $('frameModal').setAttribute('aria-hidden','true');
   $('frameImg').onload = null;
@@ -1000,6 +1006,7 @@ function closeFrame(){
 }
 $('closeModal').onclick=closeFrame;
 function syncCloudToggle(){
+  syncBasemapStatus();
   if($('cloudStatus').dataset.key) setCloudStatus($('cloudStatus').dataset.key);
   const raw=$('cloudMap').classList.contains('raw-view');
   $('cloudToggle').textContent=t(raw?'cloud_rendered':'cloud_raw');
@@ -1007,7 +1014,11 @@ function syncCloudToggle(){
 }
 function setCloudStatus(key){ $('cloudStatus').dataset.key=key; $('cloudStatus').textContent=t(key); }
 $('cloudToggle').onclick=()=>{ $('cloudMap').classList.toggle('raw-view'); syncCloudToggle(); };
-new ResizeObserver(()=>{ if($('frameModal').classList.contains('open')){ positionMarker(); renderCloudAxes(lastTile, ZOOM); } }).observe($('cloudMap'));
+$('cloudOpacity').oninput=()=>{
+  $('cloudMap').style.setProperty('--cloud-opacity',Number($('cloudOpacity').value)/100);
+  $('cloudOpacityValue').textContent=$('cloudOpacity').value+'%';
+};
+new ResizeObserver(()=>{ if($('frameModal').classList.contains('open')){ positionMarker(); renderCloudAxes(lastTile, ZOOM); updateGSIBasemap(lastTile, ZOOM); } }).observe($('cloudMap'));
 $('frameModal').addEventListener('click',e=>{ if(e.target===$('frameModal')) closeFrame(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeFrame(); });
 

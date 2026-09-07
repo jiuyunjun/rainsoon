@@ -101,6 +101,11 @@ window.I18N = {
 
     diag_title: "看不见的细节",
 
+    cloud_opacity: "云层浓度",
+    map_credit: "底图：国土地理院（色调调整）",
+    map_loading: "底图加载中…",
+    map_partial: "部分底图暂不可用",
+    map_failed: "底图暂不可用，仍可查看云图",
     cloud_heading: "降水云境",
     cloud_raw: "查看原始降水图",
     cloud_rendered: "查看立体云层",
@@ -225,6 +230,11 @@ window.I18N = {
 
     diag_title: "観測の舞台裏",
 
+    cloud_opacity: "雲の濃さ",
+    map_credit: "地図：国土地理院（色調調整）",
+    map_loading: "地図を読み込み中…",
+    map_partial: "地図の一部を読み込めません",
+    map_failed: "地図を読み込めません。雨雲は表示できます",
     cloud_heading: "雨雲の風景",
     cloud_raw: "元の降水画像を見る",
     cloud_rendered: "立体的な雲を見る",
@@ -349,6 +359,11 @@ window.I18N = {
 
     diag_title: "Behind the forecast",
 
+    cloud_opacity: "Cloud opacity",
+    map_credit: "Map: GSI Japan (color adjusted)",
+    map_loading: "Loading map…",
+    map_partial: "Some map tiles are unavailable",
+    map_failed: "Map unavailable; clouds remain visible",
     cloud_heading: "PRECIPITATION / CLOUDSCAPE",
     cloud_raw: "View original radar",
     cloud_rendered: "View cloud relief",
