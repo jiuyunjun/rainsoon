@@ -66,7 +66,7 @@ Firebase Analytics 只在 `firebase-config.js` 里的 `measurementId` 填好（�
 
 点击预报时次可查看云图：默认将降水覆盖渲染为 1024×1024 的柔和云层，边缘适度延伸至装饰框外。
 横轴为经度，纵轴为纬度，公里比例尺按瓦片中心纬度计算，并随界面宽度调整。
-底图采用[国土地理院淡色地图](https://maps.gsi.go.jp/development/ichiran.html)，与降水瓦片使用相同的 XYZ / Web Mercator 范围。
+底图采用[国土地理院白地图](https://maps.gsi.go.jp/development/ichiran.html)，以深蓝底、低对比岸线和行政边界呈现，与降水瓦片使用相同的 XYZ / Web Mercator 范围。
 手机使用同级瓦片，宽屏拼接四张下一级瓦片；底图独立加载，失败不影响云图。云层浓度滑杆可调至 0% 查看地图。
 「查看原始降水图」可对照原始彩色瓦片。云层纹理是程序化的视觉表达，不增加气象数据精度；降雨判断仍采样原始瓦片。
 

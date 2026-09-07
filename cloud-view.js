@@ -1,5 +1,5 @@
 // Both GSI and JMA use XYZ Web Mercator tiles. Child tiles cover exactly the
-// same bounds, while their extra labels remain legible on larger displays.
+// same bounds, while their boundary lines stay crisp on larger displays.
 function updateGSIBasemap(tile, zoom){
   if(!tile) return;
   const layer=document.getElementById('gsiBasemap');
@@ -27,7 +27,7 @@ function updateGSIBasemap(tile, zoom){
     const timer=setTimeout(()=>finish(false),12000);
     img.onload=()=>finish(true); img.onerror=()=>finish(false);
     grid.append(img);
-    img.src=`https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${tile.x*factor+x}/${tile.y*factor+y}.png`;
+    img.src=`https://cyberjapandata.gsi.go.jp/xyz/blank/${z}/${tile.x*factor+x}/${tile.y*factor+y}.png`;
   }
 }
 function setBasemapStatus(key){
